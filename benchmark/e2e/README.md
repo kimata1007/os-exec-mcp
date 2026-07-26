@@ -44,23 +44,27 @@ disposable trial workspace. It is not a production policy.
 
 ## Configuration
 
-Copy `config.example.json`, then set:
+For the requested Codex comparison, copy `config.codex.example.json` to
+`config.local.json`, then set:
 
 - the GitHub owner;
 - an explicit, identical model for both modes;
 - absolute workspace and result paths as appropriate;
 - `confirmPublicRepositoryCreation` to `true` only after reviewing the effects.
 
-The example uses Claude Code because its non-interactive mode accepts an explicit
-MCP configuration file. The runner itself is agent-agnostic: `command`, `args`,
-and environment can be replaced with another CLI. `{{MCP_CONFIG}}` is expanded to
-the generated per-run MCP configuration.
+The Codex example fixes the model, reasoning effort, sandbox, task prompt, and
+network policy across both modes. The MCP mode adds only the generated `os-batch`
+server configuration. Each mode also receives a unique empty npm cache to avoid
+warm-cache order bias. The generic `config.example.json` remains available for
+other agent CLIs. The runner expands placeholders in arguments and environment
+values, including the per-run MCP placeholders
+`{{MCP_CONFIG}}`, `{{MCP_NODE}}`, `{{MCP_POLICY}}`, and `{{MCP_SERVER}}`.
 
 Authenticate before running:
 
 ```bash
 gh auth status
-claude auth status
+codex login status
 ```
 
 Build this MCP server, then run alternating trials to reduce cache and time-order
@@ -92,12 +96,23 @@ npm run benchmark:e2e:report
 This writes `benchmark/results/e2e-summary.json` and
 `benchmark/results/e2e-summary.svg`.
 
+To keep pilot runs in the raw results directory while producing a controlled-only
+chart, filter on the trial labels:
+
+```bash
+node scripts/e2e-report.mjs \
+  --trial-label-includes controlled \
+  --output benchmark/results/e2e-controlled-summary
+```
+
 ## Metrics
 
 The primary metric is `page_live.elapsed_ms`, with success rate reported beside
 latency. Also report:
 
 - agent-process duration;
+- observed CLI tool-active wall time (the union of Codex
+  `command_execution`/`mcp_tool_call` intervals);
 - time to first push;
 - Pages publication wait;
 - retries and failed trials;

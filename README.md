@@ -382,7 +382,7 @@ definitions, and reporting requirements are in
 configuration before running:
 
 ```bash
-cp benchmark/e2e/config.example.json benchmark/e2e/config.local.json
+cp benchmark/e2e/config.codex.example.json benchmark/e2e/config.local.json
 npm run benchmark:e2e -- \
   --config benchmark/e2e/config.local.json \
   --mode baseline \
@@ -394,8 +394,26 @@ npm run benchmark:e2e -- \
 npm run benchmark:e2e:report
 ```
 
-No end-to-end trial result is committed yet; the component plot's whole-task curves
-must not be presented as a substitute for observed agent runs.
+The first controlled Codex smoke pair was measured on the development host on
+2026-07-26 with `gpt-5.6-sol`, low reasoning effort, and a unique empty npm cache
+per trial:
+
+| Observed metric                    | Codex standard | Codex + MCP |    MCP difference |
+| ---------------------------------- | -------------: | ----------: | ----------------: |
+| Empty directory to live Pages URL  |       375.29 s |    372.68 s |   -2.61 s (-0.7%) |
+| Codex process exit                 |       428.06 s |    410.57 s |  -17.49 s (-4.1%) |
+| CLI-observed tool-active wall time |       167.41 s |    137.10 s | -30.31 s (-18.1%) |
+| Successful trial                   |            1/1 |         1/1 |                 — |
+
+![Controlled Codex standard versus Codex with MCP benchmark](benchmark/results/e2e-controlled-summary.svg)
+
+The MCP trial used `batch_exec` for a real independent verification group:
+`format:check`, `lint`, and `test` took 0.55 s, 1.86 s, and 1.97 s individually,
+while the batch completed in 1.98 s. The end-to-end difference remained small
+because source generation, agent orchestration, GitHub operations, and Pages
+publication dominate this task. This is one successful trial per mode, not a
+statistically reliable performance claim; use at least five trials per mode for
+a directional result.
 
 Every trial intentionally creates a public repository and website, refuses to reuse
 an existing name, and never deletes it automatically. GitHub Pages publication wait

@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "benchmark": "repository-to-github-pages-summary",
+  "generated_at": "2026-07-26T05:34:45.387Z",
+  "attempted_trials": 2,
+  "trial_label_includes": "controlled",
+  "modes": [
+    {
+      "mode": "baseline",
+      "label": "Codex standard execution",
+      "attempted": 1,
+      "succeeded": 1,
+      "success_rate": 1,
+      "total_time_ms": {
+        "p50": 375290,
+        "p95": 375290
+      },
+      "pages_wait_ms": {
+        "p50": 22331,
+        "p95": 22331
+      },
+      "tool_active_wall_time_ms": {
+        "p50": 167410,
+        "p95": 167410
+      }
+    },
+    {
+      "mode": "mcp",
+      "label": "Codex with os-batch MCP",
+      "attempted": 1,
+      "succeeded": 1,
+      "success_rate": 1,
+      "total_time_ms": {
+        "p50": 372679,
+        "p95": 372679
+      },
+      "pages_wait_ms": {
+        "p50": 20822,
+        "p95": 20822
+      },
+      "tool_active_wall_time_ms": {
+        "p50": 137102,
+        "p95": 137102
+      }
+    }
+  ],
+  "cautions": [
+    "Latency includes model, local commands, GitHub API/network, and Pages queueing.",
+    "AI reasoning is not directly observable.",
+    "Success rate must be reported with latency."
+  ]
+}

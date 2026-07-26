@@ -6,17 +6,26 @@ function parseArguments(arguments_) {
   const parsed = {
     results: path.resolve("benchmark", "results", "e2e"),
     output: path.resolve("benchmark", "results", "e2e-summary"),
+    trialLabelIncludes: null,
   };
   for (let index = 0; index < arguments_.length; index += 1) {
     const argument = arguments_[index];
-    if (argument !== "--results" && argument !== "--output") {
+    if (
+      argument !== "--results" &&
+      argument !== "--output" &&
+      argument !== "--trial-label-includes"
+    ) {
       throw new Error(`Unknown argument: ${argument}`);
     }
     const value = arguments_[index + 1];
     if (value === undefined) {
       throw new Error(`${argument} requires a value`);
     }
-    parsed[argument.slice(2)] = path.resolve(value);
+    if (argument === "--trial-label-includes") {
+      parsed.trialLabelIncludes = value;
+    } else {
+      parsed[argument.slice(2)] = path.resolve(value);
+    }
     index += 1;
   }
   return parsed;
@@ -88,6 +97,7 @@ function summarize(results) {
       succeeded: 0,
       totalTimes: [],
       pagesWaitTimes: [],
+      toolActiveTimes: [],
     };
     existing.attempted += 1;
     const pageLive = phaseTime(result, "page_live");
@@ -97,6 +107,10 @@ function summarize(results) {
       existing.totalTimes.push(pageLive);
       if (pagesConfigured !== null) {
         existing.pagesWaitTimes.push(Math.max(0, pageLive - pagesConfigured));
+      }
+      const toolActive = result.agent?.telemetry?.combined_wall_time_union_ms ?? null;
+      if (typeof toolActive === "number") {
+        existing.toolActiveTimes.push(toolActive);
       }
     }
     modes.set(result.mode, existing);
@@ -115,12 +129,16 @@ function summarize(results) {
       p50: percentile(mode.pagesWaitTimes, 0.5),
       p95: percentile(mode.pagesWaitTimes, 0.95),
     },
+    tool_active_wall_time_ms: {
+      p50: percentile(mode.toolActiveTimes, 0.5),
+      p95: percentile(mode.toolActiveTimes, 0.95),
+    },
   }));
 }
 
 function resultSvg(results, summary) {
   const width = 1200;
-  const rowHeight = 48;
+  const rowHeight = 60;
   const top = 130;
   const bottomPadding = 80;
   const height = Math.max(430, top + results.length * rowHeight + bottomPadding);
@@ -128,7 +146,12 @@ function resultSvg(results, summary) {
   const right = 1135;
   const plotWidth = right - left;
   const maximumMilliseconds = Math.max(
-    ...results.map((result) => phaseTime(result, "page_live") ?? result.elapsed_ms),
+    ...results.map((result) =>
+      Math.max(
+        phaseTime(result, "page_live") ?? 0,
+        phaseTime(result, "agent_process_exited") ?? 0,
+      ),
+    ),
   );
   const roundedMaximumMinutes = Math.max(1, Math.ceil(maximumMilliseconds / 60_000));
   const xScale = (milliseconds) =>
@@ -159,6 +182,7 @@ function resultSvg(results, summary) {
         pagesConfigured === null ? total : Math.min(total, pagesConfigured);
       const pagesWait = Math.max(0, total - beforePages);
       const agentExit = phaseTime(result, "agent_process_exited");
+      const toolActive = result.agent?.telemetry?.combined_wall_time_union_ms ?? null;
       const colour = modeColours.get(result.mode);
       const failureLabel = result.success ? "" : " (failed)";
       return `
@@ -171,6 +195,17 @@ function resultSvg(results, summary) {
     <rect x="${xScale(beforePages)}" y="${y}" width="${
       xScale(pagesWait) - left
     }" height="24" fill="${result.success ? colour : "#6b7280"}" opacity="0.35" />
+    ${
+      typeof toolActive === "number"
+        ? `<rect x="${left}" y="${y + 30}" width="${
+            xScale(toolActive) - left
+          }" height="8" fill="#f59e0b" rx="4" />
+    <text class="tool-value" x="${Math.min(
+      right - 4,
+      xScale(toolActive) + 8,
+    )}" y="${y + 39}">tools ${(toolActive / 60_000).toFixed(2)} min</text>`
+        : ""
+    }
     ${
       agentExit === null
         ? ""
@@ -199,22 +234,24 @@ function resultSvg(results, summary) {
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="title description">
   <title id="title">Repository-to-GitHub-Pages benchmark</title>
-  <desc id="description">End-to-end duration for each AI agent trial. Solid bars show time through Pages configuration, translucent bars show publication wait, and vertical markers show agent exit.</desc>
+  <desc id="description">End-to-end duration for each AI agent trial. Solid bars show time through Pages configuration, translucent bars show publication wait, orange bars show observed tool-active wall time, and vertical markers show agent exit.</desc>
   <style>
     text { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #172033; }
     .title { font-size: 22px; font-weight: 600; }
     .subtitle, .summary { font-size: 13px; fill: #536075; }
-    .row-label, .value { font-size: 12px; }
+    .row-label, .value, .tool-value { font-size: 12px; }
+    .tool-value { fill: #8a5600; }
     .axis { font-size: 12px; fill: #5d687a; }
     .grid { stroke: #d7dde7; stroke-width: 1; }
     @media (prefers-color-scheme: dark) {
       text { fill: #eef2f8; }
       .subtitle, .summary, .axis { fill: #aab4c5; }
+      .tool-value { fill: #fbbf24; }
       .grid { stroke: #455065; }
     }
   </style>
   <text class="title" x="${left}" y="34">Whole task: empty directory to live GitHub Pages URL</text>
-  <text class="subtitle" x="${left}" y="56">Solid: agent work through Pages configuration · translucent: publication wait · marker: agent exit</text>
+  <text class="subtitle" x="${left}" y="56">Solid: through Pages configuration · translucent: publication wait · orange: observed tool-active time · marker: agent exit</text>
   ${summaryText}
   ${ticks
     .map(
@@ -234,9 +271,17 @@ function resultSvg(results, summary) {
 }
 
 const arguments_ = parseArguments(process.argv.slice(2));
-const results = await loadResults(arguments_.results);
+const loadedResults = await loadResults(arguments_.results);
+const results =
+  arguments_.trialLabelIncludes === null
+    ? loadedResults
+    : loadedResults.filter((result) =>
+        result.trial_label.includes(arguments_.trialLabelIncludes),
+      );
 if (results.length === 0) {
-  throw new Error(`No end-to-end result.json files found under ${arguments_.results}`);
+  throw new Error(
+    `No matching end-to-end result.json files found under ${arguments_.results}`,
+  );
 }
 const modes = summarize(results);
 const summary = {
@@ -244,6 +289,7 @@ const summary = {
   benchmark: "repository-to-github-pages-summary",
   generated_at: new Date().toISOString(),
   attempted_trials: results.length,
+  trial_label_includes: arguments_.trialLabelIncludes,
   modes,
   cautions: [
     "Latency includes model, local commands, GitHub API/network, and Pages queueing.",

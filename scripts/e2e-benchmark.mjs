@@ -1,17 +1,10 @@
 import { Buffer } from "node:buffer";
 import { spawn } from "node:child_process";
-import { constants } from "node:fs";
-import {
-  access,
-  mkdir,
-  open,
-  readFile,
-  realpath,
-  stat,
-  writeFile,
-} from "node:fs/promises";
+import { constants, createWriteStream } from "node:fs";
+import { access, mkdir, readFile, realpath, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
+import { finished } from "node:stream/promises";
 import { setTimeout } from "node:timers";
 
 const NAME_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
@@ -342,7 +335,12 @@ async function createMcpFiles(runDirectory, trialDirectory) {
     `${JSON.stringify(mcpConfiguration, null, 2)}\n`,
     "utf8",
   );
-  return mcpConfigPath;
+  return {
+    configPath: mcpConfigPath,
+    nodeExecutable: process.execPath,
+    policyPath,
+    serverEntry,
+  };
 }
 
 function renderTemplate(template, replacements) {
@@ -443,15 +441,20 @@ function terminateProcessTree(child, force = false) {
 }
 
 async function startAgent(command, args, prompt, options) {
-  const stdoutHandle = await open(options.stdoutPath, "w");
-  const stderrHandle = await open(options.stderrPath, "w");
+  const stdoutStream = createWriteStream(options.stdoutPath, { flags: "w" });
+  const stderrStream = createWriteStream(options.stderrPath, { flags: "w" });
   const child = spawn(command, args, {
     cwd: options.cwd,
     env: options.env,
     detached: process.platform !== "win32",
     shell: false,
-    stdio: ["pipe", stdoutHandle.fd, stderrHandle.fd],
+    stdio: ["pipe", "pipe", "pipe"],
   });
+  child.stdout.on("data", (chunk) => {
+    options.observeStdout?.(chunk);
+  });
+  child.stdout.pipe(stdoutStream);
+  child.stderr.pipe(stderrStream);
   child.stdin.end(prompt);
   const completion = new Promise((resolve) => {
     child.once("error", (error) => {
@@ -461,9 +464,120 @@ async function startAgent(command, args, prompt, options) {
       resolve({ code, signal, error: null });
     });
   }).finally(async () => {
-    await Promise.all([stdoutHandle.close(), stderrHandle.close()]);
+    options.finishObservingStdout?.();
+    await Promise.all([finished(stdoutStream), finished(stderrStream)]);
   });
   return { child, completion };
+}
+
+function intervalUnionMilliseconds(intervals) {
+  if (intervals.length === 0) {
+    return 0;
+  }
+  const sorted = [...intervals].sort((left, right) => left.start - right.start);
+  let total = 0;
+  let currentStart = sorted[0].start;
+  let currentEnd = sorted[0].end;
+  for (const interval of sorted.slice(1)) {
+    if (interval.start <= currentEnd) {
+      currentEnd = Math.max(currentEnd, interval.end);
+      continue;
+    }
+    total += currentEnd - currentStart;
+    currentStart = interval.start;
+    currentEnd = interval.end;
+  }
+  return total + currentEnd - currentStart;
+}
+
+function createCodexTelemetry(startedAt) {
+  let buffer = "";
+  let usage;
+  const active = new Map();
+  const intervals = {
+    command_execution: [],
+    mcp_tool_call: [],
+  };
+  const completed = {
+    command_execution: 0,
+    mcp_tool_call: 0,
+  };
+
+  function observeLine(line) {
+    if (line.trim().length === 0) {
+      return;
+    }
+    let event;
+    try {
+      event = JSON.parse(line);
+    } catch {
+      return;
+    }
+    if (event.type === "turn.completed" && event.usage !== undefined) {
+      usage = event.usage;
+      return;
+    }
+    const item = event.item;
+    if (
+      typeof item?.id !== "string" ||
+      (item.type !== "command_execution" && item.type !== "mcp_tool_call")
+    ) {
+      return;
+    }
+    const observedAt = Date.now() - startedAt;
+    if (event.type === "item.started") {
+      active.set(item.id, { start: observedAt, type: item.type });
+      return;
+    }
+    if (event.type !== "item.completed") {
+      return;
+    }
+    const started = active.get(item.id);
+    if (started === undefined || started.type !== item.type) {
+      return;
+    }
+    active.delete(item.id);
+    intervals[item.type].push({
+      start: started.start,
+      end: Math.max(started.start, observedAt),
+    });
+    completed[item.type] += 1;
+  }
+
+  return {
+    observe(chunk) {
+      buffer += chunk.toString("utf8");
+      while (true) {
+        const newline = buffer.indexOf("\n");
+        if (newline === -1) {
+          break;
+        }
+        observeLine(buffer.slice(0, newline));
+        buffer = buffer.slice(newline + 1);
+      }
+    },
+    finish() {
+      observeLine(buffer);
+      buffer = "";
+    },
+    summarize() {
+      const allIntervals = [...intervals.command_execution, ...intervals.mcp_tool_call];
+      return {
+        measurement:
+          "wall-clock union of Codex command_execution and mcp_tool_call JSON events",
+        command_execution: {
+          completed: completed.command_execution,
+          wall_time_union_ms: intervalUnionMilliseconds(intervals.command_execution),
+        },
+        mcp_tool_call: {
+          completed: completed.mcp_tool_call,
+          wall_time_union_ms: intervalUnionMilliseconds(intervals.mcp_tool_call),
+        },
+        combined_wall_time_union_ms: intervalUnionMilliseconds(allIntervals),
+        usage: usage ?? null,
+      };
+    },
+  };
 }
 
 async function delay(milliseconds) {
@@ -495,6 +609,7 @@ await ensureRemoteDoesNotExist(configuration.owner, repositoryName);
 
 const trialDirectory = path.join(configuration.workspaceRoot, repositoryName);
 const runDirectory = path.join(configuration.resultsDirectory, repositoryName);
+await mkdir(configuration.workspaceRoot, { recursive: true });
 await Promise.all([
   mkdir(trialDirectory, { recursive: false }),
   mkdir(runDirectory, { recursive: true }),
@@ -502,9 +617,9 @@ await Promise.all([
 
 const pageUrl = `https://${configuration.owner.toLowerCase()}.github.io/${repositoryName}/`;
 const repositoryUrl = `https://github.com/${configuration.owner}/${repositoryName}`;
-const mcpConfigPath = configuration.mode.mcpEnabled
+const mcpFiles = configuration.mode.mcpEnabled
   ? await createMcpFiles(runDirectory, trialDirectory)
-  : "";
+  : undefined;
 const promptTemplatePath = path.resolve(
   path.dirname(configPath),
   requireString(untrustedConfiguration.promptFile, "promptFile"),
@@ -517,22 +632,38 @@ const replacements = {
   PAGE_URL: pageUrl,
   RUN_ID: runId,
   MODE: configuration.mode.name,
-  MCP_CONFIG: mcpConfigPath,
+  MCP_CONFIG: mcpFiles?.configPath ?? "",
+  MCP_NODE: mcpFiles?.nodeExecutable ?? "",
+  MCP_POLICY: mcpFiles?.policyPath ?? "",
+  MCP_SERVER: mcpFiles?.serverEntry ?? "",
   WORKSPACE: trialDirectory,
 };
 const prompt = renderTemplate(promptTemplate, replacements);
 const agentArgs = configuration.mode.args.map((argument) =>
   renderTemplate(argument, replacements),
 );
+const agentEnvironment = Object.fromEntries(
+  Object.entries(configuration.mode.environment).map(([name, value]) => [
+    name,
+    renderTemplate(value, replacements),
+  ]),
+);
 await writeFile(path.join(runDirectory, "prompt.md"), prompt, "utf8");
 
 const startedAt = Date.now();
 const recorder = phaseRecorder(startedAt);
+const codexTelemetry = createCodexTelemetry(startedAt);
 const agent = await startAgent(configuration.mode.command, agentArgs, prompt, {
   cwd: trialDirectory,
-  env: { ...process.env, ...configuration.mode.environment },
+  env: { ...process.env, ...agentEnvironment },
   stdoutPath: path.join(runDirectory, "agent.stdout.jsonl"),
   stderrPath: path.join(runDirectory, "agent.stderr.log"),
+  observeStdout: (chunk) => {
+    codexTelemetry.observe(chunk);
+  },
+  finishObservingStdout: () => {
+    codexTelemetry.finish();
+  },
 });
 let agentResult;
 let agentExitedAt;
@@ -594,6 +725,7 @@ const result = {
     command: configuration.mode.command,
     model: configuration.mode.model,
     arguments_recorded: false,
+    telemetry: codexTelemetry.summarize(),
   },
   started_at: new Date(startedAt).toISOString(),
   ended_at: new Date(endedAt).toISOString(),

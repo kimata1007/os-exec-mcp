@@ -33,9 +33,10 @@ The expected repository and site are:
 - Repository: {{REPOSITORY_URL}}
 - Site: {{PAGE_URL}}
 
-If an OS batch MCP tool is available, use it only for independent commands that
-are safe to run concurrently. Do not force dependent or mutating operations to run
-in parallel.
+The assigned benchmark mode is `{{MODE}}`. In `baseline` mode, run OS commands
+normally. In `mcp` mode, use the OS batch MCP tool for at least one real group of
+independent commands that is safe to run concurrently. Do not force dependent or
+mutating operations to run in parallel.
 
 Before finishing:
 
