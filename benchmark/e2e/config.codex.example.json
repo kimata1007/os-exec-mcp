@@ -86,6 +86,8 @@
         "mcp_servers.os-batch.env={ OS_BATCH_POLICY_FILE=\"{{MCP_POLICY}}\", OS_BATCH_WORKSPACE_ROOT=\"{{WORKSPACE}}\" }",
         "--config",
         "mcp_servers.os-batch.required=true",
+        "--config",
+        "mcp_servers.os-batch.tools.batch_exec.approval_mode=\"approve\"",
         "-"
       ],
       "model": "gpt-5.6-sol (low)",

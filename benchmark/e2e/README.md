@@ -79,6 +79,14 @@ values, including the per-run MCP placeholders `{{MCP_CONFIG}}`,
 `{{OTEL_LOGS_ENDPOINT}}`, `{{OTEL_TRACES_ENDPOINT}}`, and
 `{{OTEL_METRICS_ENDPOINT}}` when `otelCapture` is enabled.
 
+The Codex MCP examples preapprove only `os-batch.batch_exec` at the client
+approval boundary. This prevents a separate auto-review model call for every
+batch while the MCP server's disposable-workspace restriction and command
+denylist remain authoritative. The tool still advertises
+`destructiveHint: true` because policy-allowed commands can write files; changing
+that hint to `false` would misdescribe the tool rather than configure approval
+behavior.
+
 For a local-only comparison, use `config.codex.local.example.json` directly:
 
 ```bash

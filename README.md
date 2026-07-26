@@ -496,6 +496,12 @@ overhead. Model/API time includes provider generation, network, and queueing;
 provider-side private reasoning compute is not separately observable, so
 reasoning-token counts are reported alongside it.
 
+The MCP benchmark mode also preapproves `os-batch.batch_exec` in Codex. This
+removes redundant auto-review model calls for a tool that is already constrained
+to the disposable trial workspace by the generated MCP policy. The server keeps
+`destructiveHint: true`; preapproval changes who reviews the call, whereas the
+hint accurately describes that policy-allowed commands can still write files.
+
 The first controlled local smoke pair was measured on the development macOS host on
 2026-07-26 with `gpt-5.6-sol`, low reasoning effort, and one trial per mode:
 
