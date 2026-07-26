@@ -483,7 +483,18 @@ node scripts/e2e-report.mjs \
   --results benchmark/results/e2e-local \
   --trial-label-includes local-controlled \
   --output benchmark/results/e2e-local-controlled-summary
+node scripts/agent-profile.mjs \
+  --results benchmark/results/e2e-local \
+  --trial-label-includes local-controlled \
+  --output benchmark/results/e2e-local-controlled-profile
 ```
+
+The Codex examples enable native OpenTelemetry capture. The resulting full-agent
+profile partitions the entire process wall time into model/API activity, direct
+commands, MCP calls, other tools, concurrent known work, and unattributed agent
+overhead. Model/API time includes provider generation, network, and queueing;
+provider-side private reasoning compute is not separately observable, so
+reasoning-token counts are reported alongside it.
 
 The first controlled local smoke pair was measured on the development macOS host on
 2026-07-26 with `gpt-5.6-sol`, low reasoning effort, and one trial per mode:
@@ -504,6 +515,33 @@ individual command of 2.16 s. The whole-task difference is still small, and obse
 tool-active time was higher in this single MCP trial because dependency and task
 details differed between agent runs. One pair is a smoke comparison, not a
 statistically reliable performance claim.
+
+#### Whole-agent OpenTelemetry profile
+
+A second successful pair enabled native Codex OTel and measured the complete agent
+process. The reported model/API interval includes provider generation, network, and
+queueing. Active intervals can overlap—for example, the approval-review model can
+run while a command is active—so the stacked graph assigns those periods to
+`Concurrent known work` instead of double-counting them.
+
+| Whole-agent metric                     | Codex standard | Codex + MCP |    MCP difference |
+| -------------------------------------- | -------------: | ----------: | ----------------: |
+| Empty directory to agent exit          |       374.73 s |    343.10 s |  -31.63 s (-8.4%) |
+| Model/API active wall time (inclusive) |       268.06 s |    268.76 s |   +0.69 s (+0.3%) |
+| All tools active wall time (inclusive) |       117.47 s |    110.47 s |   -6.99 s (-6.0%) |
+| Input tokens                           |        650,196 |     491,808 | -158,388 (-24.4%) |
+| Reasoning output tokens                |            752 |         583 |     -169 (-22.5%) |
+| Median turn time to first token        |         4.03 s |      2.60 s |  -1.44 s (-35.6%) |
+| Successful trial                       |            1/1 |         1/1 |                 — |
+
+![Whole AI agent profile comparing standard Codex and Codex with MCP](benchmark/results/e2e-local-agent-profile.svg)
+
+The main bottleneck was model/API activity: 71.5% of the standard run and 78.3% of
+the MCP run when measured inclusively. Its absolute time was effectively unchanged.
+The MCP run reduced tool-active time modestly and completed faster, but one pair
+cannot establish causality because the agent chose different implementation and
+repair paths. Use alternating trials—at least five successful runs per mode—before
+making a performance claim.
 
 ### Empty repository to GitHub Pages
 

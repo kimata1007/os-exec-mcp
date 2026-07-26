@@ -7,6 +7,8 @@ import process from "node:process";
 import { finished } from "node:stream/promises";
 import { setTimeout } from "node:timers";
 
+import { startOtelCapture } from "./otel-capture.mjs";
+
 const NAME_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
 const MODE_PATTERN = /^[a-z0-9][a-z0-9_-]{0,31}$/;
 const PLACEHOLDER_PATTERN = /\{\{([A-Z_]+)\}\}/g;
@@ -104,6 +106,7 @@ function validateConfiguration(untrusted, modeName, configPath) {
   const configDirectory = path.dirname(configPath);
   return {
     publish,
+    otelCapture: untrusted.otelCapture === true,
     owner,
     repositoryPrefix,
     workspaceRoot: path.resolve(
@@ -537,6 +540,7 @@ function createCodexTelemetry(startedAt) {
           wall_time_union_ms: intervalUnionMilliseconds(intervals.mcp_tool_call),
         },
         combined_wall_time_union_ms: intervalUnionMilliseconds(allIntervals),
+        intervals,
         usage: usage ?? null,
       };
     },
@@ -581,6 +585,11 @@ await Promise.all([
   mkdir(trialDirectory, { recursive: false }),
   mkdir(runDirectory, { recursive: true }),
 ]);
+const otelCapture = configuration.otelCapture
+  ? await startOtelCapture({
+      outputPath: path.join(runDirectory, "agent.otel.jsonl"),
+    })
+  : null;
 
 const pageUrl = configuration.publish
   ? `https://${configuration.owner.toLowerCase()}.github.io/${repositoryName}/`
@@ -607,6 +616,9 @@ const replacements = {
   MCP_NODE: mcpFiles?.nodeExecutable ?? "",
   MCP_POLICY: mcpFiles?.policyPath ?? "",
   MCP_SERVER: mcpFiles?.serverEntry ?? "",
+  OTEL_LOGS_ENDPOINT: otelCapture?.logsEndpoint ?? "",
+  OTEL_METRICS_ENDPOINT: otelCapture?.metricsEndpoint ?? "",
+  OTEL_TRACES_ENDPOINT: otelCapture?.tracesEndpoint ?? "",
   WORKSPACE: trialDirectory,
 };
 const prompt = renderTemplate(promptTemplate, replacements);
@@ -686,6 +698,7 @@ if (agentResult === undefined) {
   agentResult = await agent.completion;
 }
 await observePhases(observationContext);
+await otelCapture?.close();
 
 const endedAt = Date.now();
 const localValidation = configuration.publish
@@ -745,10 +758,18 @@ const result = {
     workspace: trialDirectory,
     agent_stdout: path.join(runDirectory, "agent.stdout.jsonl"),
     agent_stderr: path.join(runDirectory, "agent.stderr.log"),
+    otel_capture: otelCapture?.outputPath ?? null,
     prompt: path.join(runDirectory, "prompt.md"),
   },
   notes: [
-    "AI/model reasoning is not directly observable; elapsed time includes model, tool orchestration, commands, and external services.",
+    ...(otelCapture === null
+      ? [
+          "AI/model reasoning is not directly observable; elapsed time includes model, tool orchestration, commands, and external services.",
+        ]
+      : [
+          "Codex OpenTelemetry captures model/API wall time and reasoning-token counts, but cannot separate provider-side compute from network or queueing.",
+          "OTel prompt and user identity attributes are redacted before capture is stored.",
+        ]),
     ...(configuration.publish
       ? ["The public repository is intentionally not deleted automatically."]
       : ["No remote repository was created and no Git push was performed."]),

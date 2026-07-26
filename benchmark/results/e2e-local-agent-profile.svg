@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="462" viewBox="0 0 1280 462" role="img" aria-labelledby="title description">
+  <title id="title">Whole AI agent profile</title>
+  <desc id="description">Stacked whole-task wall time including model API, tools, overlap, and unattributed agent overhead.</desc>
+  <style>
+    text { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #172033; }
+    .title { font-size: 24px; font-weight: 650; }
+    .subtitle, .legend, .detail, .axis { font-size: 13px; fill: #536075; }
+    .row-label, .value { font-size: 13px; }
+    .grid { stroke: #d7dde7; stroke-width: 1; }
+    @media (prefers-color-scheme: dark) {
+      text { fill: #eef2f8; }
+      .subtitle, .legend, .detail, .axis { fill: #aab4c5; }
+      .grid { stroke: #455065; }
+    }
+  </style>
+  <text class="title" x="270" y="34">Whole AI agent profile: standard Codex vs Codex + MCP</text>
+  <text class="subtitle" x="270" y="58">Model/API includes provider generation, network and queueing; private server compute cannot be isolated.</text>
+  <rect x="270" y="70" width="13" height="13" rx="2" fill="#2563eb" />
+  <text class="legend" x="290" y="82">Model/API</text>
+  <rect x="555" y="70" width="13" height="13" rx="2" fill="#16a34a" />
+  <text class="legend" x="575" y="82">Commands</text>
+  <rect x="840" y="70" width="13" height="13" rx="2" fill="#7c3aed" />
+  <text class="legend" x="860" y="82">MCP</text>
+  <rect x="270" y="94" width="13" height="13" rx="2" fill="#f59e0b" />
+  <text class="legend" x="290" y="106">Other tools</text>
+  <rect x="555" y="94" width="13" height="13" rx="2" fill="#dc2626" />
+  <text class="legend" x="575" y="106">Concurrent known work</text>
+  <rect x="840" y="94" width="13" height="13" rx="2" fill="#94a3b8" />
+  <text class="legend" x="860" y="106">Agent overhead / unattributed</text>
+  <line class="grid" x1="270" x2="270" y1="157" y2="392" />
+  <text class="axis" x="270" y="420" text-anchor="middle">0 s</text>
+  <line class="grid" x1="423.3333333333333" x2="423.3333333333333" y1="157" y2="392" />
+  <text class="axis" x="423.3333333333333" y="420" text-anchor="middle">65 s</text>
+  <line class="grid" x1="576.6666666666666" x2="576.6666666666666" y1="157" y2="392" />
+  <text class="axis" x="576.6666666666666" y="420" text-anchor="middle">130 s</text>
+  <line class="grid" x1="730" x2="730" y1="157" y2="392" />
+  <text class="axis" x="730" y="420" text-anchor="middle">195 s</text>
+  <line class="grid" x1="883.3333333333333" x2="883.3333333333333" y1="157" y2="392" />
+  <text class="axis" x="883.3333333333333" y="420" text-anchor="middle">260 s</text>
+  <line class="grid" x1="1036.6666666666667" x2="1036.6666666666667" y1="157" y2="392" />
+  <text class="axis" x="1036.6666666666667" y="420" text-anchor="middle">325 s</text>
+  <line class="grid" x1="1190" x2="1190" y1="157" y2="392" />
+  <text class="axis" x="1190" y="420" text-anchor="middle">390 s</text>
+  <text class="row-label" x="256" y="197" text-anchor="end">otel-profile-baseline-01</text>
+    <rect x="270" y="175" width="600.2009230769231" height="34" fill="#2563eb" />
+    <rect x="870.2009230769231" y="175" width="144.64051282051287" height="34" fill="#16a34a" />
+    <rect x="1014.8414358974359" y="175" width="0" height="34" fill="#7c3aed" />
+    <rect x="1014.8414358974359" y="175" width="6.201743589743614" height="34" fill="#f59e0b" />
+    <rect x="1021.0431794871795" y="175" width="126.25466666666671" height="34" fill="#dc2626" />
+    <rect x="1147.297846153846" y="175" width="6.682974358974377" height="34" fill="#94a3b8" />
+    <text class="value" x="1161.9808205128206" y="197">374.7 s</text>
+    <text class="detail" x="270" y="232">Model/API active 268.1 s (71.5%) · tools 117.5 s (31.3%) · reasoning tokens 752</text>
+  <text class="row-label" x="256" y="293" text-anchor="end">otel-profile-mcp-01</text>
+    <rect x="270" y="271" width="545.2179487179487" height="34" fill="#2563eb" />
+    <rect x="815.2179487179487" y="271" width="76.06512820512819" height="34" fill="#16a34a" />
+    <rect x="891.2830769230769" y="271" width="8.789538461538484" height="34" fill="#7c3aed" />
+    <rect x="900.0726153846153" y="271" width="6.211179487179493" height="34" fill="#f59e0b" />
+    <rect x="906.2837948717948" y="271" width="169.5394871794872" height="34" fill="#dc2626" />
+    <rect x="1075.8232820512821" y="271" width="3.533743589743608" height="34" fill="#94a3b8" />
+    <text class="value" x="1087.3570256410258" y="293">343.1 s</text>
+    <text class="detail" x="270" y="328">Model/API active 268.8 s (78.3%) · tools 110.5 s (32.2%) · reasoning tokens 583</text>
+</svg>

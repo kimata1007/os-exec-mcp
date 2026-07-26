@@ -30,8 +30,11 @@ The harness observes these milestones:
 - `page_live`
 - `agent_process_exited`
 
-It cannot observe private model reasoning. Time outside known external phases must
-be described as agent/model orchestration time, not pure "thinking time".
+For Codex runs, the example configuration starts a local OpenTelemetry receiver.
+It records model/API request spans, response completion and time-to-first-token
+events, reasoning-token counts, and tool results. Provider-side model compute
+cannot be separated from network and queueing, so the report calls this
+**model/API wall time**, not pure "thinking time".
 
 ## Safety and external side effects
 
@@ -45,6 +48,8 @@ website**. The harness:
 - does not store configured environment variables in the result;
 - does store raw agent stdout/stderr, which may still contain sensitive output and
   must be reviewed before sharing.
+- redacts OTel prompt, account ID, and email attributes before storing the local
+  capture.
 
 Run this only with a dedicated benchmark account or narrowly scoped credentials.
 The generated MCP policy deliberately permits `node` and `npm run` inside the
@@ -69,8 +74,10 @@ network policy across both modes. The MCP mode adds only the generated `os-batch
 server configuration. Each mode also receives a unique empty npm cache to avoid
 warm-cache order bias. The generic `config.example.json` remains available for
 other agent CLIs. The runner expands placeholders in arguments and environment
-values, including the per-run MCP placeholders
-`{{MCP_CONFIG}}`, `{{MCP_NODE}}`, `{{MCP_POLICY}}`, and `{{MCP_SERVER}}`.
+values, including the per-run MCP placeholders `{{MCP_CONFIG}}`,
+`{{MCP_NODE}}`, `{{MCP_POLICY}}`, and `{{MCP_SERVER}}`, plus
+`{{OTEL_LOGS_ENDPOINT}}`, `{{OTEL_TRACES_ENDPOINT}}`, and
+`{{OTEL_METRICS_ENDPOINT}}` when `otelCapture` is enabled.
 
 For a local-only comparison, use `config.codex.local.example.json` directly:
 
@@ -87,6 +94,10 @@ node scripts/e2e-report.mjs \
   --results benchmark/results/e2e-local \
   --trial-label-includes local-controlled \
   --output benchmark/results/e2e-local-controlled-summary
+node scripts/agent-profile.mjs \
+  --results benchmark/results/e2e-local \
+  --trial-label-includes local-controlled \
+  --output benchmark/results/e2e-local-controlled-profile
 ```
 
 These commands do not require `gh auth` and do not push.
@@ -127,6 +138,20 @@ npm run benchmark:e2e:report
 This writes `benchmark/results/e2e-summary.json` and
 `benchmark/results/e2e-summary.svg`.
 
+For OTel-enabled Codex trials, generate the full agent profile separately:
+
+```bash
+npm run benchmark:e2e:profile -- \
+  --results benchmark/results/e2e-local \
+  --trial-label-includes local-controlled \
+  --output benchmark/results/e2e-local-controlled-profile
+```
+
+The profile's stacked categories cover the complete agent-process wall clock:
+model/API, direct commands, MCP calls, other tools, overlapping known activity,
+and unattributed agent overhead. The last category is deliberately retained
+instead of being mislabeled as model reasoning.
+
 To keep pilot runs in the raw results directory while producing a controlled-only
 chart, filter on the trial labels:
 
@@ -148,8 +173,9 @@ Always report success rate beside latency. Also report:
 - time to first push;
 - Pages publication wait;
 - retries and failed trials;
-- model, effort/reasoning setting, token usage, and monetary cost when exposed by
-  the selected CLI;
+- model/API active wall time, response count, time to first token,
+  effort/reasoning setting, token usage, and monetary cost when exposed by the
+  selected CLI;
 - component benchmark results from the same host.
 
 Do not compare only successful latency while hiding failures. Report p50 and p95

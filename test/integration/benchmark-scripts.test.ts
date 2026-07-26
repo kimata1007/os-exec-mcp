@@ -219,4 +219,106 @@ describe("benchmark scripts", () => {
       "Empty repository to verified local application",
     );
   });
+
+  it("profiles whole-agent wall time from Codex OTel and CLI intervals", async () => {
+    const directory = await temporaryDirectory();
+    const resultsDirectory = path.join(directory, "results");
+    const trialDirectory = path.join(resultsDirectory, "profile-01");
+    const capturePath = path.join(trialDirectory, "agent.otel.jsonl");
+    await mkdir(trialDirectory, { recursive: true });
+    const startedAt = Date.parse("2026-07-26T00:00:00.000Z");
+    const millisecondsToNanoseconds = (milliseconds: number): string =>
+      String(BigInt(startedAt + milliseconds) * 1_000_000n);
+    const capture = {
+      path: "/v1/traces",
+      body: {
+        resourceSpans: [
+          {
+            scopeSpans: [
+              {
+                spans: [
+                  {
+                    name: "responses_websocket.stream_request",
+                    startTimeUnixNano: millisecondsToNanoseconds(100),
+                    endTimeUnixNano: millisecondsToNanoseconds(500),
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    };
+    const result = {
+      schema_version: 1,
+      benchmark: "empty-repository-to-local-application",
+      run_id: "profile-01",
+      trial_label: "profile-01",
+      mode: "baseline",
+      mode_label: "Baseline",
+      started_at: "2026-07-26T00:00:00.000Z",
+      elapsed_ms: 1_000,
+      success: true,
+      phases: {
+        agent_process_exited: { elapsed_ms: 1_000 },
+      },
+      agent: {
+        telemetry: {
+          intervals: {
+            command_execution: [{ start: 600, end: 800 }],
+            mcp_tool_call: [],
+          },
+          command_execution: { completed: 1 },
+          mcp_tool_call: { completed: 0 },
+          usage: { reasoning_output_tokens: 5 },
+        },
+      },
+      artifacts: {
+        otel_capture: capturePath,
+      },
+    };
+    await Promise.all([
+      writeFile(capturePath, `${JSON.stringify(capture)}\n`, "utf8"),
+      writeFile(
+        path.join(trialDirectory, "result.json"),
+        `${JSON.stringify(result)}\n`,
+        "utf8",
+      ),
+    ]);
+
+    const outputBase = path.join(directory, "agent-profile");
+    await execFileAsync(process.execPath, [
+      path.resolve("scripts", "agent-profile.mjs"),
+      "--results",
+      resultsDirectory,
+      "--output",
+      outputBase,
+    ]);
+
+    const profile: unknown = JSON.parse(await readFile(`${outputBase}.json`, "utf8"));
+    expect(profile).toMatchObject({
+      benchmark: "whole-ai-agent-profile",
+      trials: [
+        {
+          total_wall_ms: 1_000,
+          breakdown_ms: {
+            model_api: 400,
+            command: 200,
+            mcp: 0,
+            other_tool: 0,
+            known_overlap: 0,
+            unattributed: 400,
+          },
+          active_wall_ms: {
+            model_api_union: 400,
+            tools_union: 200,
+            all_known_union: 600,
+          },
+        },
+      ],
+    });
+    expect(await readFile(`${outputBase}.svg`, "utf8")).toContain(
+      "Whole AI agent profile",
+    );
+  });
 });

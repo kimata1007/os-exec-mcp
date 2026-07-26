@@ -31,6 +31,7 @@
     "benchmark:component": "npm run build && node scripts/benchmark.mjs",
     "benchmark:e2e": "npm run build && node scripts/e2e-benchmark.mjs",
     "benchmark:e2e:report": "node scripts/e2e-report.mjs",
+    "benchmark:e2e:profile": "node scripts/agent-profile.mjs",
     "check": "npm run format:check && npm run lint && npm run typecheck && npm test && npm run build",
     "start": "node dist/mcp/stdio.js"
   },
