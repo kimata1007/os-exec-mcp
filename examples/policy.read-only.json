@@ -1,0 +1,24 @@
+{
+  "workspaceRoots": ["."],
+  "maxBatchSize": 16,
+  "maxConcurrency": 8,
+  "defaultConcurrency": 4,
+  "defaultTimeoutMs": 10000,
+  "maxTimeoutMs": 60000,
+  "defaultMaxOutputBytes": 65536,
+  "absoluteMaxOutputBytes": 1048576,
+  "allowedEnvironmentKeys": [],
+  "commands": {
+    "git": {
+      "allowed": true,
+      "allowedSubcommands": ["status", "diff", "log", "show", "rev-parse", "ls-files"],
+      "readOnly": true
+    },
+    "rg": {
+      "allowed": true,
+      "readOnly": true
+    }
+  },
+  "logLevel": "info",
+  "readOnly": true
+}

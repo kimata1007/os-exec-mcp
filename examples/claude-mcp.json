@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "os-batch": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${OS_BATCH_MCP_HOME}/dist/mcp/stdio.js"],
+      "env": {
+        "OS_BATCH_POLICY_FILE": "${OS_BATCH_MCP_HOME}/examples/policy.read-only.json",
+        "OS_BATCH_WORKSPACE_ROOT": "${CLAUDE_PROJECT_DIR:-.}"
+      }
+    }
+  }
+}
