@@ -462,6 +462,49 @@ p50/p95 values, host metadata, and formulas are in
 This sample was measured on the development macOS host on 2026-07-26 and is not a
 performance guarantee.
 
+### Empty repository to local application
+
+The local end-to-end mode compares Codex standard execution with Codex plus this MCP
+server without creating a remote repository or pushing anything. Both modes start in
+different empty directories, use the same model and reasoning effort, receive the same
+Focus Board task, and use a unique empty npm cache. Success requires a local `main`
+commit, a production `/docs` build, `.nojekyll`, and the per-run marker.
+
+```bash
+npm run benchmark:e2e -- \
+  --config benchmark/e2e/config.codex.local.example.json \
+  --mode baseline \
+  --trial local-controlled-baseline-01
+npm run benchmark:e2e -- \
+  --config benchmark/e2e/config.codex.local.example.json \
+  --mode mcp \
+  --trial local-controlled-mcp-01
+node scripts/e2e-report.mjs \
+  --results benchmark/results/e2e-local \
+  --trial-label-includes local-controlled \
+  --output benchmark/results/e2e-local-controlled-summary
+```
+
+The first controlled local smoke pair was measured on the development macOS host on
+2026-07-26 with `gpt-5.6-sol`, low reasoning effort, and one trial per mode:
+
+| Observed metric                    | Codex standard | Codex + MCP |   MCP difference |
+| ---------------------------------- | -------------: | ----------: | ---------------: |
+| Empty directory to agent exit      |       324.15 s |    319.13 s |  -5.02 s (-1.5%) |
+| CLI-observed tool-active wall time |        66.84 s |     71.58 s |  +4.73 s (+7.1%) |
+| Input tokens                       |        617,485 |     526,766 | -90,719 (-14.7%) |
+| Successful trial                   |            1/1 |         1/1 |                — |
+
+![Controlled local Codex standard versus Codex with MCP benchmark](benchmark/results/e2e-local-controlled-summary.svg)
+
+The MCP trial issued five `batch_exec` calls containing 23 commands. For example, six
+independent discovery commands completed in 133 ms, and the first
+`format:check`/`lint`/`typecheck`/`test` group completed in 2.20 s versus a longest
+individual command of 2.16 s. The whole-task difference is still small, and observed
+tool-active time was higher in this single MCP trial because dependency and task
+details differed between agent runs. One pair is a smoke comparison, not a
+statistically reliable performance claim.
+
 ### Empty repository to GitHub Pages
 
 The end-to-end benchmark measures a separate product-level outcome: an AI agent

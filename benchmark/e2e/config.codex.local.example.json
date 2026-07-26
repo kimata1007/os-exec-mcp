@@ -1,0 +1,82 @@
+{
+  "publish": false,
+  "confirmPublicRepositoryCreation": false,
+  "owner": "local",
+  "repositoryPrefix": "os-batch-local",
+  "workspaceRoot": "/private/tmp/os-batch-e2e-workspaces",
+  "resultsDirectory": "../results/e2e-local",
+  "promptFile": "task.local.md",
+  "pollIntervalMs": 1000,
+  "agentTimeoutMs": 1800000,
+  "deploymentTimeoutMs": 600000,
+  "modes": {
+    "baseline": {
+      "label": "Codex standard execution",
+      "command": "codex",
+      "args": [
+        "exec",
+        "--ephemeral",
+        "--ignore-user-config",
+        "--ignore-rules",
+        "--skip-git-repo-check",
+        "--sandbox",
+        "workspace-write",
+        "--json",
+        "--model",
+        "gpt-5.6-sol",
+        "--config",
+        "model_reasoning_effort=\"low\"",
+        "--config",
+        "approval_policy=\"on-request\"",
+        "--config",
+        "approvals_reviewer=\"auto_review\"",
+        "--config",
+        "sandbox_workspace_write.network_access=true",
+        "-"
+      ],
+      "model": "gpt-5.6-sol (low)",
+      "mcpEnabled": false,
+      "environment": {
+        "npm_config_cache": "/private/tmp/os-batch-e2e-npm-cache/{{RUN_ID}}"
+      }
+    },
+    "mcp": {
+      "label": "Codex with os-batch MCP",
+      "command": "codex",
+      "args": [
+        "exec",
+        "--ephemeral",
+        "--ignore-user-config",
+        "--ignore-rules",
+        "--skip-git-repo-check",
+        "--sandbox",
+        "workspace-write",
+        "--json",
+        "--model",
+        "gpt-5.6-sol",
+        "--config",
+        "model_reasoning_effort=\"low\"",
+        "--config",
+        "approval_policy=\"on-request\"",
+        "--config",
+        "approvals_reviewer=\"auto_review\"",
+        "--config",
+        "sandbox_workspace_write.network_access=true",
+        "--config",
+        "mcp_servers.os-batch.command=\"{{MCP_NODE}}\"",
+        "--config",
+        "mcp_servers.os-batch.args=[\"{{MCP_SERVER}}\"]",
+        "--config",
+        "mcp_servers.os-batch.env={ OS_BATCH_POLICY_FILE=\"{{MCP_POLICY}}\", OS_BATCH_WORKSPACE_ROOT=\"{{WORKSPACE}}\" }",
+        "--config",
+        "mcp_servers.os-batch.required=true",
+        "-"
+      ],
+      "model": "gpt-5.6-sol (low)",
+      "mcpEnabled": true,
+      "environment": {
+        "npm_config_cache": "/private/tmp/os-batch-e2e-npm-cache/{{RUN_ID}}"
+      }
+    }
+  }
+}

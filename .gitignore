@@ -8,3 +8,4 @@ coverage/
 !.env.example
 benchmark/e2e/config.local.json
 benchmark/results/e2e/
+benchmark/results/e2e-local/

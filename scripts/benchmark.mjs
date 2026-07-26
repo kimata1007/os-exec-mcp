@@ -46,6 +46,9 @@ const policy = {
   absoluteMaxOutputBytes: 1024 * 1024,
   allowedEnvironmentKeys: [],
   trustedExecutableDirectories: [nodeDirectory],
+  inheritExecutablePath: false,
+  commandMode: "allowlist",
+  deniedCommands: [],
   commands: {
     node: {
       allowed: true,

@@ -69,7 +69,10 @@ async function loadResults(resultDirectory) {
     const resultPath = path.join(resultDirectory, entry.name, "result.json");
     try {
       const result = JSON.parse(await readFile(resultPath, "utf8"));
-      if (result.benchmark === "repository-to-github-pages") {
+      if (
+        result.benchmark === "repository-to-github-pages" ||
+        result.benchmark === "empty-repository-to-local-application"
+      ) {
         results.push(result);
       }
     } catch (error) {
@@ -87,6 +90,15 @@ function phaseTime(result, phaseName) {
   return result.phases?.[phaseName]?.elapsed_ms ?? null;
 }
 
+function primaryTime(result) {
+  const phaseName =
+    result.primary_phase ??
+    (result.benchmark === "empty-repository-to-local-application"
+      ? "agent_process_exited"
+      : "page_live");
+  return phaseTime(result, phaseName);
+}
+
 function summarize(results) {
   const modes = new Map();
   for (const result of results) {
@@ -100,13 +112,16 @@ function summarize(results) {
       toolActiveTimes: [],
     };
     existing.attempted += 1;
-    const pageLive = phaseTime(result, "page_live");
+    const totalTime = primaryTime(result);
     const pagesConfigured = phaseTime(result, "pages_configured");
-    if (result.success && pageLive !== null) {
+    if (result.success && totalTime !== null) {
       existing.succeeded += 1;
-      existing.totalTimes.push(pageLive);
-      if (pagesConfigured !== null) {
-        existing.pagesWaitTimes.push(Math.max(0, pageLive - pagesConfigured));
+      existing.totalTimes.push(totalTime);
+      if (
+        pagesConfigured !== null &&
+        result.benchmark === "repository-to-github-pages"
+      ) {
+        existing.pagesWaitTimes.push(Math.max(0, totalTime - pagesConfigured));
       }
       const toolActive = result.agent?.telemetry?.combined_wall_time_union_ms ?? null;
       if (typeof toolActive === "number") {
@@ -148,7 +163,7 @@ function resultSvg(results, summary) {
   const maximumMilliseconds = Math.max(
     ...results.map((result) =>
       Math.max(
-        phaseTime(result, "page_live") ?? 0,
+        primaryTime(result) ?? 0,
         phaseTime(result, "agent_process_exited") ?? 0,
       ),
     ),
@@ -175,9 +190,8 @@ function resultSvg(results, summary) {
   const rows = results
     .map((result, index) => {
       const y = top + index * rowHeight;
-      const pageLive = phaseTime(result, "page_live");
       const pagesConfigured = phaseTime(result, "pages_configured");
-      const total = pageLive ?? result.elapsed_ms;
+      const total = primaryTime(result) ?? result.elapsed_ms;
       const beforePages =
         pagesConfigured === null ? total : Math.min(total, pagesConfigured);
       const pagesWait = Math.max(0, total - beforePages);
@@ -232,9 +246,21 @@ function resultSvg(results, summary) {
     )
     .join("");
 
+  const localOnly = results.every(
+    (result) => result.benchmark === "empty-repository-to-local-application",
+  );
+  const title = localOnly
+    ? "Empty repository to verified local application"
+    : "Repository-to-GitHub-Pages benchmark";
+  const heading = localOnly
+    ? "Whole task: empty directory to completed local application"
+    : "Whole task: empty directory to live GitHub Pages URL";
+  const subtitle = localOnly
+    ? "Solid: agent completion · orange: observed tool-active time"
+    : "Solid: through Pages configuration · translucent: publication wait · orange: observed tool-active time · marker: agent exit";
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="title description">
-  <title id="title">Repository-to-GitHub-Pages benchmark</title>
-  <desc id="description">End-to-end duration for each AI agent trial. Solid bars show time through Pages configuration, translucent bars show publication wait, orange bars show observed tool-active wall time, and vertical markers show agent exit.</desc>
+  <title id="title">${title}</title>
+  <desc id="description">End-to-end duration for each AI agent trial. ${subtitle}.</desc>
   <style>
     text { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #172033; }
     .title { font-size: 22px; font-weight: 600; }
@@ -250,8 +276,8 @@ function resultSvg(results, summary) {
       .grid { stroke: #455065; }
     }
   </style>
-  <text class="title" x="${left}" y="34">Whole task: empty directory to live GitHub Pages URL</text>
-  <text class="subtitle" x="${left}" y="56">Solid: through Pages configuration · translucent: publication wait · orange: observed tool-active time · marker: agent exit</text>
+  <text class="title" x="${left}" y="34">${heading}</text>
+  <text class="subtitle" x="${left}" y="56">${subtitle}</text>
   ${summaryText}
   ${ticks
     .map(
@@ -284,15 +310,22 @@ if (results.length === 0) {
   );
 }
 const modes = summarize(results);
+const localOnly = results.every(
+  (result) => result.benchmark === "empty-repository-to-local-application",
+);
 const summary = {
   schema_version: 1,
-  benchmark: "repository-to-github-pages-summary",
+  benchmark: localOnly
+    ? "empty-repository-to-local-application-summary"
+    : "repository-to-github-pages-summary",
   generated_at: new Date().toISOString(),
   attempted_trials: results.length,
   trial_label_includes: arguments_.trialLabelIncludes,
   modes,
   cautions: [
-    "Latency includes model, local commands, GitHub API/network, and Pages queueing.",
+    localOnly
+      ? "Latency includes model orchestration and local commands."
+      : "Latency includes model, local commands, GitHub API/network, and Pages queueing.",
     "AI reasoning is not directly observable.",
     "Success rate must be reported with latency.",
   ],

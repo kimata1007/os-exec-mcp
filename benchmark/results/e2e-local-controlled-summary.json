@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "benchmark": "empty-repository-to-local-application-summary",
+  "generated_at": "2026-07-26T07:58:00.535Z",
+  "attempted_trials": 2,
+  "trial_label_includes": "local-controlled-20260726",
+  "modes": [
+    {
+      "mode": "baseline",
+      "label": "Codex standard execution",
+      "attempted": 1,
+      "succeeded": 1,
+      "success_rate": 1,
+      "total_time_ms": {
+        "p50": 324149,
+        "p95": 324149
+      },
+      "pages_wait_ms": {
+        "p50": null,
+        "p95": null
+      },
+      "tool_active_wall_time_ms": {
+        "p50": 66842,
+        "p95": 66842
+      }
+    },
+    {
+      "mode": "mcp",
+      "label": "Codex with os-batch MCP",
+      "attempted": 1,
+      "succeeded": 1,
+      "success_rate": 1,
+      "total_time_ms": {
+        "p50": 319129,
+        "p95": 319129
+      },
+      "pages_wait_ms": {
+        "p50": null,
+        "p95": null
+      },
+      "tool_active_wall_time_ms": {
+        "p50": 71576,
+        "p95": 71576
+      }
+    }
+  ],
+  "cautions": [
+    "Latency includes model orchestration and local commands.",
+    "AI reasoning is not directly observable.",
+    "Success rate must be reported with latency."
+  ]
+}

@@ -1,7 +1,7 @@
 import { Buffer } from "node:buffer";
 import { spawn } from "node:child_process";
 import { constants, createWriteStream } from "node:fs";
-import { access, mkdir, readFile, realpath, stat, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { finished } from "node:stream/promises";
@@ -60,12 +60,15 @@ function validateConfiguration(untrusted, modeName, configPath) {
   if (typeof untrusted !== "object" || untrusted === null || Array.isArray(untrusted)) {
     throw new Error("Configuration must be a JSON object");
   }
-  if (untrusted.confirmPublicRepositoryCreation !== true) {
+  const publish = untrusted.publish !== false;
+  if (publish && untrusted.confirmPublicRepositoryCreation !== true) {
     throw new Error(
       "Set confirmPublicRepositoryCreation to true after reviewing the public-repository side effects",
     );
   }
-  const owner = requireString(untrusted.owner, "owner");
+  const owner = publish
+    ? requireString(untrusted.owner, "owner")
+    : requireString(untrusted.owner ?? "local", "owner");
   if (!NAME_PATTERN.test(owner.toLowerCase())) {
     throw new Error("owner must be a safe GitHub account name");
   }
@@ -100,6 +103,7 @@ function validateConfiguration(untrusted, modeName, configPath) {
   }
   const configDirectory = path.dirname(configPath);
   return {
+    publish,
     owner,
     repositoryPrefix,
     workspaceRoot: path.resolve(
@@ -155,34 +159,6 @@ async function exists(candidate) {
   } catch {
     return false;
   }
-}
-
-async function executableOnPath(name) {
-  const pathValue = process.env.PATH ?? "";
-  const extensions =
-    process.platform === "win32"
-      ? (process.env.PATHEXT ?? ".EXE;.COM").split(";")
-      : [""];
-  for (const directory of pathValue.split(path.delimiter)) {
-    if (directory.length === 0) {
-      continue;
-    }
-    for (const extension of extensions) {
-      const candidate = path.join(directory, `${name}${extension}`);
-      try {
-        await access(
-          candidate,
-          process.platform === "win32"
-            ? constants.R_OK
-            : constants.R_OK | constants.X_OK,
-        );
-        return await realpath(candidate);
-      } catch {
-        // Try the next PATH entry.
-      }
-    }
-  }
-  return undefined;
 }
 
 async function runCapture(command, args, options = {}) {
@@ -254,62 +230,13 @@ async function ensureRemoteDoesNotExist(owner, repositoryName) {
 }
 
 async function createMcpFiles(runDirectory, trialDirectory) {
-  const npmExecutable = await executableOnPath("npm");
-  if (npmExecutable === undefined) {
-    throw new Error("npm is required for the MCP benchmark mode");
-  }
-  const rgExecutable = await executableOnPath("rg");
-  const trustedDirectories = new Set([
-    path.dirname(process.execPath),
-    path.dirname(npmExecutable),
-  ]);
-  if (rgExecutable !== undefined) {
-    trustedDirectories.add(path.dirname(rgExecutable));
-  }
-  for (const candidate of ["/usr/bin", "/bin"]) {
-    if (await exists(candidate)) {
-      trustedDirectories.add(await realpath(candidate));
-    }
-  }
-  const commands = {
-    node: {
-      allowed: true,
-      path: await realpath(process.execPath),
-      readOnly: false,
-    },
-    npm: {
-      allowed: true,
-      path: npmExecutable,
-      allowedSubcommands: ["run", "test"],
-      readOnly: false,
-    },
-    git: {
-      allowed: true,
-      allowedSubcommands: ["status", "diff", "log", "show", "rev-parse", "ls-files"],
-      readOnly: true,
-    },
-  };
-  if (rgExecutable !== undefined) {
-    commands.rg = {
-      allowed: true,
-      path: rgExecutable,
-      readOnly: true,
-    };
-  }
+  const developmentPolicy = JSON.parse(
+    await readFile(path.resolve("examples", "policy.development.json"), "utf8"),
+  );
   const policy = {
+    ...developmentPolicy,
     workspaceRoots: [trialDirectory],
-    maxBatchSize: 16,
-    maxConcurrency: 16,
-    defaultConcurrency: 4,
-    defaultTimeoutMs: 120_000,
-    maxTimeoutMs: 300_000,
-    defaultMaxOutputBytes: 256 * 1024,
-    absoluteMaxOutputBytes: 1024 * 1024,
-    allowedEnvironmentKeys: [],
-    trustedExecutableDirectories: [...trustedDirectories],
-    commands,
     logLevel: "info",
-    readOnly: false,
   };
   const policyPath = path.join(runDirectory, "mcp-policy.json");
   await writeFile(policyPath, `${JSON.stringify(policy, null, 2)}\n`, "utf8");
@@ -392,7 +319,8 @@ async function pageContainsMarker(pageUrl, runId) {
 }
 
 async function observePhases(context) {
-  const { owner, repositoryName, trialDirectory, pageUrl, runId, recorder } = context;
+  const { publish, owner, repositoryName, trialDirectory, pageUrl, runId, recorder } =
+    context;
   if (await exists(path.join(trialDirectory, ".git"))) {
     recorder.record("local_repository_created");
   }
@@ -401,6 +329,9 @@ async function observePhases(context) {
     (await exists(path.join(trialDirectory, "src")))
   ) {
     recorder.record("application_source_created");
+  }
+  if (!publish) {
+    return;
   }
   const repository = await ghApi(`repos/${owner}/${repositoryName}`);
   if (repository === undefined) {
@@ -418,6 +349,38 @@ async function observePhases(context) {
   if (await pageContainsMarker(pageUrl, runId)) {
     recorder.record("page_live");
   }
+}
+
+async function validateLocalApplication(trialDirectory, runId) {
+  const requiredPaths = [
+    ".git",
+    "package.json",
+    "src",
+    path.join("docs", "index.html"),
+    path.join("docs", ".nojekyll"),
+  ];
+  const present = await Promise.all(
+    requiredPaths.map(async (relativePath) => ({
+      relativePath,
+      exists: await exists(path.join(trialDirectory, relativePath)),
+    })),
+  );
+  const missing = present
+    .filter((item) => !item.exists)
+    .map((item) => item.relativePath);
+  let markerPresent = false;
+  if (!missing.includes(path.join("docs", "index.html"))) {
+    const html = await readFile(
+      path.join(trialDirectory, "docs", "index.html"),
+      "utf8",
+    );
+    markerPresent = html.includes(runId);
+  }
+  return {
+    success: missing.length === 0 && markerPresent,
+    missing,
+    marker_present: markerPresent,
+  };
 }
 
 function terminateProcessTree(child, force = false) {
@@ -594,7 +557,9 @@ const configuration = validateConfiguration(
   arguments_.mode,
   configPath,
 );
-await requireGitHubAuthentication();
+if (configuration.publish) {
+  await requireGitHubAuthentication();
+}
 
 const runId = timestampName();
 const trialLabel =
@@ -605,7 +570,9 @@ const repositoryName = `${configuration.repositoryPrefix}-${configuration.mode.n
 if (repositoryName.length > 100) {
   throw new Error("Generated GitHub repository name exceeds 100 characters");
 }
-await ensureRemoteDoesNotExist(configuration.owner, repositoryName);
+if (configuration.publish) {
+  await ensureRemoteDoesNotExist(configuration.owner, repositoryName);
+}
 
 const trialDirectory = path.join(configuration.workspaceRoot, repositoryName);
 const runDirectory = path.join(configuration.resultsDirectory, repositoryName);
@@ -615,8 +582,12 @@ await Promise.all([
   mkdir(runDirectory, { recursive: true }),
 ]);
 
-const pageUrl = `https://${configuration.owner.toLowerCase()}.github.io/${repositoryName}/`;
-const repositoryUrl = `https://github.com/${configuration.owner}/${repositoryName}`;
+const pageUrl = configuration.publish
+  ? `https://${configuration.owner.toLowerCase()}.github.io/${repositoryName}/`
+  : "";
+const repositoryUrl = configuration.publish
+  ? `https://github.com/${configuration.owner}/${repositoryName}`
+  : "";
 const mcpFiles = configuration.mode.mcpEnabled
   ? await createMcpFiles(runDirectory, trialDirectory)
   : undefined;
@@ -676,6 +647,7 @@ agent.completion.then((result) => {
 });
 
 const observationContext = {
+  publish: configuration.publish,
   owner: configuration.owner,
   repositoryName,
   trialDirectory,
@@ -685,7 +657,10 @@ const observationContext = {
 };
 while (true) {
   await observePhases(observationContext);
-  if (recorder.phases.page_live !== undefined && agentResult !== undefined) {
+  if (
+    agentResult !== undefined &&
+    (!configuration.publish || recorder.phases.page_live !== undefined)
+  ) {
     break;
   }
   const now = Date.now();
@@ -699,6 +674,7 @@ while (true) {
     }
   }
   if (
+    configuration.publish &&
     agentExitedAt !== undefined &&
     now - agentExitedAt > configuration.deploymentTimeoutMs
   ) {
@@ -712,10 +688,23 @@ if (agentResult === undefined) {
 await observePhases(observationContext);
 
 const endedAt = Date.now();
-const success = agentResult.code === 0 && recorder.phases.page_live !== undefined;
+const localValidation = configuration.publish
+  ? null
+  : await validateLocalApplication(trialDirectory, runId);
+if (localValidation?.success) {
+  recorder.record("local_task_complete");
+}
+const success =
+  agentResult.code === 0 &&
+  (configuration.publish
+    ? recorder.phases.page_live !== undefined
+    : localValidation?.success === true);
 const result = {
   schema_version: 1,
-  benchmark: "repository-to-github-pages",
+  benchmark: configuration.publish
+    ? "repository-to-github-pages"
+    : "empty-repository-to-local-application",
+  primary_phase: configuration.publish ? "page_live" : "agent_process_exited",
   run_id: runId,
   trial_label: trialLabel,
   mode: configuration.mode.name,
@@ -740,14 +729,17 @@ const result = {
   repository: {
     owner: configuration.owner,
     name: repositoryName,
-    visibility: "public",
-    url: repositoryUrl,
+    visibility: configuration.publish ? "public" : "local",
+    url: configuration.publish ? repositoryUrl : null,
   },
-  pages: {
-    url: pageUrl,
-    source: { branch: "main", path: "/docs", build_type: "legacy" },
-    marker: runId,
-  },
+  pages: configuration.publish
+    ? {
+        url: pageUrl,
+        source: { branch: "main", path: "/docs", build_type: "legacy" },
+        marker: runId,
+      }
+    : null,
+  local_validation: localValidation,
   phases: recorder.phases,
   artifacts: {
     workspace: trialDirectory,
@@ -757,14 +749,20 @@ const result = {
   },
   notes: [
     "AI/model reasoning is not directly observable; elapsed time includes model, tool orchestration, commands, and external services.",
-    "The public repository is intentionally not deleted automatically.",
+    ...(configuration.publish
+      ? ["The public repository is intentionally not deleted automatically."]
+      : ["No remote repository was created and no Git push was performed."]),
   ],
 };
 const resultPath = path.join(runDirectory, "result.json");
 await writeFile(resultPath, `${JSON.stringify(result, null, 2)}\n`, "utf8");
 process.stdout.write(`success=${success}\n`);
-process.stdout.write(`repository=${repositoryUrl}\n`);
-process.stdout.write(`pages=${pageUrl}\n`);
+if (configuration.publish) {
+  process.stdout.write(`repository=${repositoryUrl}\n`);
+  process.stdout.write(`pages=${pageUrl}\n`);
+} else {
+  process.stdout.write(`workspace=${trialDirectory}\n`);
+}
 process.stdout.write(`result=${resultPath}\n`);
 if (!success) {
   process.exitCode = 1;

@@ -1,17 +1,24 @@
 # End-to-end AI agent benchmark
 
-This benchmark measures time from an empty directory to a verified public GitHub
-Pages deployment. It complements, rather than replaces, the component benchmark.
+This benchmark measures an AI agent from an empty directory to either a verified
+local application or a verified public GitHub Pages deployment. It complements,
+rather than replaces, the component benchmark.
 
 ## What it measures
 
-The fixed task in `task.md` requires an agent to:
+The public task in `task.md` requires an agent to:
 
 1. initialize a local repository;
 2. build and verify a TypeScript application;
 3. create and push a public GitHub repository;
 4. configure branch-based GitHub Pages without GitHub Actions;
 5. wait until the public URL returns the per-run marker.
+
+The local task in `task.local.md` keeps the same application, checks, production
+build, and local Git requirements, but explicitly forbids creating a remote,
+running `gh`, or pushing. Its primary milestone is `agent_process_exited`; the
+harness then verifies the expected local repository, source, `/docs`, `.nojekyll`,
+and marker before declaring success.
 
 The harness observes these milestones:
 
@@ -28,7 +35,8 @@ be described as agent/model orchestration time, not pure "thinking time".
 
 ## Safety and external side effects
 
-Each run creates a **public GitHub repository and a public website**. The harness:
+Each run with `publish: true` creates a **public GitHub repository and a public
+website**. The harness:
 
 - requires `confirmPublicRepositoryCreation: true`;
 - refuses to reuse an existing repository name;
@@ -41,6 +49,10 @@ Each run creates a **public GitHub repository and a public website**. The harnes
 Run this only with a dedicated benchmark account or narrowly scoped credentials.
 The generated MCP policy deliberately permits `node` and `npm run` inside the
 disposable trial workspace. It is not a production policy.
+
+The local configuration sets `publish: false`. It skips GitHub authentication and
+remote observation entirely, creates no public resources, and uses the development
+denylist policy with the trial directory as its only workspace root.
 
 ## Configuration
 
@@ -59,6 +71,25 @@ warm-cache order bias. The generic `config.example.json` remains available for
 other agent CLIs. The runner expands placeholders in arguments and environment
 values, including the per-run MCP placeholders
 `{{MCP_CONFIG}}`, `{{MCP_NODE}}`, `{{MCP_POLICY}}`, and `{{MCP_SERVER}}`.
+
+For a local-only comparison, use `config.codex.local.example.json` directly:
+
+```bash
+npm run benchmark:e2e -- \
+  --config benchmark/e2e/config.codex.local.example.json \
+  --mode baseline \
+  --trial local-controlled-baseline-01
+npm run benchmark:e2e -- \
+  --config benchmark/e2e/config.codex.local.example.json \
+  --mode mcp \
+  --trial local-controlled-mcp-01
+node scripts/e2e-report.mjs \
+  --results benchmark/results/e2e-local \
+  --trial-label-includes local-controlled \
+  --output benchmark/results/e2e-local-controlled-summary
+```
+
+These commands do not require `gh auth` and do not push.
 
 Authenticate before running:
 
@@ -107,8 +138,9 @@ node scripts/e2e-report.mjs \
 
 ## Metrics
 
-The primary metric is `page_live.elapsed_ms`, with success rate reported beside
-latency. Also report:
+For published runs, the primary metric is `page_live.elapsed_ms`. For local runs,
+it is `agent_process_exited.elapsed_ms` after the local artifact validation passes.
+Always report success rate beside latency. Also report:
 
 - agent-process duration;
 - observed CLI tool-active wall time (the union of Codex
