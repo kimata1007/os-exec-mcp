@@ -103,7 +103,7 @@ transport classes. This is the boundary intended for future transports and embed
 - `env` defaults to empty. A client may set only keys approved by the server, and may
   never replace execution-sensitive variables such as `PATH`, loader variables,
   shell initialization, proxy configuration, or common credential variables.
-- `concurrency` defaults to 4 and cannot exceed the policy maximum (8 by default) or
+- `concurrency` defaults to 8 and cannot exceed the policy maximum (16 by default) or
   the command count.
 - `max_output_bytes` is a per-command, per-stream limit: stdout and stderr each retain
   up to this many bytes. Both pipes continue to be read after truncation.
@@ -188,13 +188,16 @@ limit causes startup to fail closed.
 {
   "workspaceRoots": ["."],
   "maxBatchSize": 16,
-  "maxConcurrency": 8,
-  "defaultConcurrency": 4,
+  "maxConcurrency": 16,
+  "defaultConcurrency": 8,
   "defaultTimeoutMs": 10000,
   "maxTimeoutMs": 60000,
   "defaultMaxOutputBytes": 65536,
   "absoluteMaxOutputBytes": 1048576,
   "allowedEnvironmentKeys": [],
+  "inheritExecutablePath": false,
+  "commandMode": "allowlist",
+  "deniedCommands": [],
   "commands": {
     "git": {
       "allowed": true,
@@ -204,6 +207,14 @@ limit causes startup to fail closed.
     "rg": {
       "allowed": true,
       "path": "/absolute/path/to/rg",
+      "readOnly": true
+    },
+    "ls": {
+      "allowed": true,
+      "readOnly": true
+    },
+    "find": {
+      "allowed": true,
       "readOnly": true
     }
   },
@@ -228,6 +239,82 @@ The environment may set:
 
 Environment values are server-administrator configuration, not `batch_exec` input.
 
+Two example policies are included:
+
+| Policy                             | Mode      | Behavior                                                                                      |
+| ---------------------------------- | --------- | --------------------------------------------------------------------------------------------- |
+| `examples/policy.read-only.json`   | allowlist | Permits only configured repository-reading commands                                           |
+| `examples/policy.development.json` | denylist  | Permits every executable found in the inherited parent `PATH`, except explicitly denied names |
+
+The development policy has an empty `commands` object. `commandMode: "denylist"`
+means an executable does not need a per-command entry: if it is available on the
+inherited `PATH` and its name is not in `deniedCommands`, it is allowed.
+
+The development denylist includes direct destructive, privilege-changing,
+interactive, system-management, remote-login, global-package-manager, and command
+wrapper executables. Examples include shells, `sudo`, `rm`, `dd`, `chmod`, `kill`,
+interactive editors and pagers, `ssh`, `brew`, `docker`, `env`, and `xargs`. The
+server's built-in shell and privilege-elevation denylist still applies even if an
+operator removes those names from the JSON list.
+
+This denylist reduces accidental direct execution; it is not a security sandbox.
+Allowed runtimes and build tools such as `node`, Python, npm scripts, and `make` can
+execute other programs or modify arbitrary data available to the server process. Use
+the allowlist policy for untrusted repository content, and run the development policy
+inside a container or dedicated low-privilege account when stronger isolation is
+required.
+
+### Command selection modes
+
+- `commandMode: "allowlist"`: only entries with `allowed: true` in `commands` run.
+- `commandMode: "denylist"`: any resolved executable runs unless its name appears in
+  `deniedCommands`; an explicit `commands` entry can still apply a path or subcommand
+  restriction.
+- `inheritExecutablePath: true`: canonical, accessible directories from the server
+  process's parent `PATH` become trusted executable directories; executable symlink
+  targets exposed by those directories are accepted like normal parent-process PATH
+  lookup.
+- `inheritExecutablePath: false`: only explicit trusted directories, the Node runtime
+  directory, and system executable directories are considered.
+
+### What to batch
+
+Batch all independent operations. Common examples include:
+
+```text
+ls src
+find test -type f
+rg TODO src test
+git status --short
+```
+
+Independent reads of different files should also be batched:
+
+```text
+head -n 80 src/server.ts
+tail -n 80 src/executor.ts
+wc -l README.md src/index.ts
+stat package.json tsconfig.json
+```
+
+The development policy also permits independent writes to different targets, for
+example creating separate directories or copying unrelated assets:
+
+```text
+mkdir docs/assets
+mkdir coverage/unit
+cp public/logo.svg docs/assets/logo.svg
+touch docs/.nojekyll
+```
+
+Do not batch commands with a data dependency or a shared mutable target. Examples
+that must remain sequential include:
+
+- `npm install` followed by `npm test`;
+- multiple updates to the same file;
+- `git add` followed by `git commit`;
+- a build followed by a command that consumes its output.
+
 ### Adding a command
 
 1. Prefer an absolute canonical `path`.
@@ -239,17 +326,20 @@ Environment values are server-administrator configuration, not `batch_exec` inpu
 
 The server has built-in guards for:
 
-- Git: only configured subcommands, no pager, external diff, text conversion,
-  signature helper, output-file option, `--no-index`, or optional index locks.
+- Git: optional configured subcommand restrictions, no pager, external diff, text
+  conversion, signature helper, output-file option, `--no-index`, or optional index
+  locks.
 - ripgrep: no preprocessors, hostname helpers, symlink following, absolute paths, or
   parent traversal.
-- `find`: no `-exec`, `-delete`, `-ok`, or output-to-file actions when an operator
-  explicitly enables it.
+- `find`: no `-exec`, `-delete`, `-ok`, or output-to-file actions.
+- Workspace-oriented file commands (`ls`, `find`, `cat`, `head`, `tail`, `wc`,
+  `stat`, `du`, `mkdir`, `cp`, `mv`, and `touch`): no absolute paths, parent
+  traversal, or absolute path values embedded in options.
 
 Package managers, build tools, language runtimes, test runners, Git hooks, and plugin
-hosts can execute arbitrary code. Do not allow them merely because their executable
-name looks familiar. The test and benchmark policies allow `node` only to execute the
-repository's cross-platform fixture; the production default does not allow it.
+hosts can execute arbitrary code. The development denylist mode deliberately allows
+these unless their executable name is denied; use the read-only allowlist policy
+instead when executing untrusted repository content.
 
 ## Secure defaults and threat model
 
@@ -257,7 +347,7 @@ The implementation enforces:
 
 - `shell: false`; no `eval`, `sh -c`, `bash -c`, `cmd /c`, or PowerShell command mode
 - argv arrays only; stdin ignored and no TTY
-- explicit command and optional subcommand allowlists
+- allowlist or denylist command selection, with optional per-command restrictions
 - shells and privilege-elevation executables denied even if listed
 - canonical workspace and symlink-boundary checks for `cwd`
 - canonical executable resolution and trusted-directory checks
@@ -308,6 +398,9 @@ CI exercises Node 20 on Linux, macOS, and Windows, plus Node 24 on Linux.
 ## Logging and observability
 
 Logs are newline-delimited JSON on stderr. The default level is `info`.
+
+Startup fields include `command_mode`, `denied_command_count`,
+`inherited_executable_path`, `read_only`, and concurrency limits.
 
 Batch fields include `request_id`, `batch_size`, `effective_concurrency`,
 `wall_time_ms`, and status counts. Command fields include `command_id`, canonical
@@ -426,7 +519,7 @@ Build first, then register the absolute compiled entry point. For this checkout:
 
 ```bash
 codex mcp add os-batch \
-  --env OS_BATCH_POLICY_FILE=/Users/kimata/Desktop/dev/os-batch-mcp/examples/policy.read-only.json \
+  --env OS_BATCH_POLICY_FILE=/Users/kimata/Desktop/dev/os-batch-mcp/examples/policy.development.json \
   --env OS_BATCH_WORKSPACE_ROOT=/absolute/path/to/workspace \
   -- node /Users/kimata/Desktop/dev/os-batch-mcp/dist/mcp/stdio.js
 codex mcp list
@@ -441,9 +534,11 @@ configuration. Restart the client after changing the server registration.
 Suggested Codex instruction:
 
 ```text
-Inspect this repository. Batch independent, non-conflicting, read-only commands
-through os-batch batch_exec. Use failure_mode=continue when partial results remain
-useful. Keep ordered writes and multiple writes to the same file sequential.
+Proactively use os-batch batch_exec for all independent OS operations. Batch
+repository discovery with ls, find, rg, and read-only git commands. Batch independent
+reads, checks, and writes to different files or output directories. Use
+failure_mode=continue when partial results remain useful. Keep dependent commands,
+ordered Git operations, and writes to the same target sequential.
 ```
 
 ## Claude Code setup
@@ -454,7 +549,7 @@ Build first, then add the server. All Claude options precede the server name:
 claude mcp add \
   --transport stdio \
   --scope project \
-  --env OS_BATCH_POLICY_FILE=/Users/kimata/Desktop/dev/os-batch-mcp/examples/policy.read-only.json \
+  --env OS_BATCH_POLICY_FILE=/Users/kimata/Desktop/dev/os-batch-mcp/examples/policy.development.json \
   --env OS_BATCH_WORKSPACE_ROOT=/absolute/path/to/workspace \
   os-batch -- node /Users/kimata/Desktop/dev/os-batch-mcp/dist/mcp/stdio.js
 claude mcp list
@@ -476,9 +571,10 @@ in one stable location or use a container/dev-container path shared by the team.
 Suggested Claude Code instruction:
 
 ```text
-When several independent read-only OS operations are needed, call os-batch
-batch_exec once instead of making sequential Bash calls. Do not parallelize dependent
-operations, ordered Git actions, or writes to the same file.
+Proactively call os-batch batch_exec for independent repository reads, checks, and
+writes to different targets instead of making sequential Bash calls. Use ls and find
+as part of parallel discovery. Do not parallelize dependent operations, ordered Git
+actions, or writes to the same target.
 ```
 
 ## `AGENTS.md` and `CLAUDE.md` snippets
@@ -492,7 +588,9 @@ Add this to `AGENTS.md` for Codex-compatible repository guidance, and separately
 - Use the os-batch MCP server for multiple independent OS operations.
 - Batch only operations that have no data dependency and do not compete for the same
   mutable resource.
-- Prefer batch_exec for read-only repository inspection.
+- Proactively batch repository discovery with ls, find, rg, and read-only Git.
+- Batch independent reads of different files.
+- Batch independent writes to different files or output directories.
 - Use failure_mode=continue when partial results remain useful.
 - Use failure_mode=fail_fast only when later work is invalid after one failure.
 - Do not batch writes to the same file.

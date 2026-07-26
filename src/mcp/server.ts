@@ -34,7 +34,7 @@ export function createOsBatchMcpServer({
     {
       title: "Parallel OS command batch",
       description:
-        "Run 1-16 independent, policy-allowed OS commands concurrently. Supply argv arrays (never shell strings). Results preserve input order and distinguish failures, timeouts, cancellations, policy rejections, skipped commands, and spawn errors. Use continue for independent investigation and fail_fast only when later work is invalid after a failure.",
+        "Proactively run 1-16 independent, policy-allowed OS commands concurrently, including repository reads and non-conflicting writes to different targets. Supply argv arrays (never shell strings). Results preserve input order and distinguish failures, timeouts, cancellations, policy rejections, skipped commands, and spawn errors. Use continue when partial results remain useful and fail_fast only when later work is invalid after a failure.",
       inputSchema: batchExecInputSchema,
       outputSchema: batchExecResultSchema,
       annotations: {

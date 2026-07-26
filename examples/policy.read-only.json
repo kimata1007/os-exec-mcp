@@ -1,13 +1,16 @@
 {
   "workspaceRoots": ["."],
   "maxBatchSize": 16,
-  "maxConcurrency": 8,
-  "defaultConcurrency": 4,
+  "maxConcurrency": 16,
+  "defaultConcurrency": 8,
   "defaultTimeoutMs": 10000,
   "maxTimeoutMs": 60000,
   "defaultMaxOutputBytes": 65536,
   "absoluteMaxOutputBytes": 1048576,
   "allowedEnvironmentKeys": [],
+  "inheritExecutablePath": false,
+  "commandMode": "allowlist",
+  "deniedCommands": [],
   "commands": {
     "git": {
       "allowed": true,
@@ -15,6 +18,42 @@
       "readOnly": true
     },
     "rg": {
+      "allowed": true,
+      "readOnly": true
+    },
+    "ls": {
+      "allowed": true,
+      "readOnly": true
+    },
+    "find": {
+      "allowed": true,
+      "readOnly": true
+    },
+    "cat": {
+      "allowed": true,
+      "readOnly": true
+    },
+    "head": {
+      "allowed": true,
+      "readOnly": true
+    },
+    "tail": {
+      "allowed": true,
+      "readOnly": true
+    },
+    "wc": {
+      "allowed": true,
+      "readOnly": true
+    },
+    "stat": {
+      "allowed": true,
+      "readOnly": true
+    },
+    "du": {
+      "allowed": true,
+      "readOnly": true
+    },
+    "pwd": {
       "allowed": true,
       "readOnly": true
     }

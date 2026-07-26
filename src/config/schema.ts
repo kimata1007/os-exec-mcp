@@ -2,6 +2,14 @@ import { z } from "zod";
 
 export const logLevelSchema = z.enum(["debug", "info", "warn", "error", "silent"]);
 export type LogLevel = z.infer<typeof logLevelSchema>;
+export const commandModeSchema = z.enum(["allowlist", "denylist"]);
+export type CommandMode = z.infer<typeof commandModeSchema>;
+
+const executableNameSchema = z
+  .string()
+  .min(1)
+  .max(128)
+  .regex(/^[A-Za-z0-9][A-Za-z0-9._+-]*$/);
 
 export const commandPolicySchema = z
   .object({
@@ -18,8 +26,8 @@ export const policyFileSchema = z
   .object({
     workspaceRoots: z.array(z.string().min(1).max(4096)).min(1).max(32).default(["."]),
     maxBatchSize: z.number().int().min(1).max(256).default(16),
-    maxConcurrency: z.number().int().min(1).max(64).default(8),
-    defaultConcurrency: z.number().int().min(1).max(64).default(4),
+    maxConcurrency: z.number().int().min(1).max(64).default(16),
+    defaultConcurrency: z.number().int().min(1).max(64).default(8),
     defaultTimeoutMs: z.number().int().min(100).max(600_000).default(10_000),
     maxTimeoutMs: z.number().int().min(100).max(600_000).default(60_000),
     defaultMaxOutputBytes: z
@@ -42,6 +50,9 @@ export const policyFileSchema = z
       .array(z.string().min(1).max(4096))
       .max(64)
       .optional(),
+    inheritExecutablePath: z.boolean().default(false),
+    commandMode: commandModeSchema.default("allowlist"),
+    deniedCommands: z.array(executableNameSchema).max(256).default([]),
     commands: z.record(z.string().min(1).max(128), commandPolicySchema).default({}),
     logLevel: logLevelSchema.default("info"),
     readOnly: z.boolean().default(true),

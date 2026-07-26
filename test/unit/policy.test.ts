@@ -65,6 +65,27 @@ describe("command and path policy", () => {
     );
   });
 
+  it("allows unlisted commands in denylist mode and rejects listed commands", async () => {
+    const root = await temporaryDirectory();
+    const executable = path.basename(process.execPath);
+    const evaluator = new CommandPolicyEvaluator(
+      testPolicy(root, {
+        commandMode: "denylist",
+        deniedCommands: ["blocked"],
+        commands: {},
+        readOnly: false,
+      }),
+    );
+
+    const prepared = await evaluator.prepare(command([executable, "--version"]), 1024);
+    expect(prepared.executable).toBe(process.execPath);
+
+    await expectRejection(
+      evaluator.prepare(command(["blocked"]), 1024),
+      "command_denied",
+    );
+  });
+
   it("allows only configured git subcommands and injects safe git options", async () => {
     const root = await temporaryDirectory();
     const evaluator = new CommandPolicyEvaluator(
@@ -94,7 +115,7 @@ describe("command and path policy", () => {
     );
   });
 
-  it("rejects dangerous git, ripgrep, and find execution options", async () => {
+  it("rejects dangerous options and workspace path escapes", async () => {
     const root = await temporaryDirectory();
     const evaluator = new CommandPolicyEvaluator(
       testPolicy(root, {
@@ -107,6 +128,8 @@ describe("command and path policy", () => {
           },
           rg: { allowed: true, path: process.execPath, readOnly: true },
           find: { allowed: true, path: process.execPath, readOnly: true },
+          ls: { allowed: true, path: process.execPath, readOnly: true },
+          cp: { allowed: true, path: process.execPath, readOnly: true },
         },
       }),
     );
@@ -130,6 +153,18 @@ describe("command and path policy", () => {
     await expectRejection(
       evaluator.prepare(command(["find", ".", "-exec", "bad", ";"]), 1024),
       "argument_denied",
+    );
+    await expectRejection(
+      evaluator.prepare(command(["ls", "../outside"]), 1024),
+      "argument_path_escape",
+    );
+    await expectRejection(
+      evaluator.prepare(command(["ls", "/etc"]), 1024),
+      "argument_path_escape",
+    );
+    await expectRejection(
+      evaluator.prepare(command(["cp", "source", "--target-directory=/tmp"]), 1024),
+      "argument_path_escape",
     );
   });
 
@@ -259,5 +294,30 @@ describe("command and path policy", () => {
       evaluator.prepare(command(["fake"]), 1024),
       "executable_not_found",
     );
+  });
+
+  it("follows executables exposed by an explicitly inherited PATH directory", async () => {
+    if (process.platform === "win32") {
+      return;
+    }
+    const root = await temporaryDirectory();
+    const bin = path.join(root, "bin");
+    await import("node:fs/promises").then(async ({ mkdir }) => {
+      await mkdir(bin);
+    });
+    const fake = path.join(bin, "fake");
+    await symlink(process.execPath, fake);
+    const evaluator = new CommandPolicyEvaluator(
+      testPolicy(root, {
+        trustedExecutableDirectories: [bin],
+        inheritExecutablePath: true,
+        commandMode: "denylist",
+        commands: {},
+        readOnly: false,
+      }),
+    );
+
+    const prepared = await evaluator.prepare(command(["fake", "--version"]), 1024);
+    expect(prepared.executable).toBe(process.execPath);
   });
 });

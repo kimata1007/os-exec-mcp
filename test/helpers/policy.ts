@@ -18,6 +18,9 @@ export function testPolicy(
     absoluteMaxOutputBytes: 1024 * 1024,
     allowedEnvironmentKeys: ["SAFE_VALUE"],
     trustedExecutableDirectories: [path.dirname(process.execPath)],
+    inheritExecutablePath: false,
+    commandMode: "allowlist",
+    deniedCommands: [],
     commands: {
       node: {
         allowed: true,

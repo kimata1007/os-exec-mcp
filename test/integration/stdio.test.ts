@@ -104,7 +104,9 @@ describe("stdio MCP protocol", () => {
       name: "os-batch-mcp",
       version: "0.1.0",
     });
-    expect(client.getInstructions()).toContain("Batch only independent operations");
+    expect(client.getInstructions()).toContain(
+      "Proactively batch all independent operations",
+    );
 
     const listed = await client.listTools();
     expect(listed.tools).toHaveLength(1);
@@ -139,6 +141,7 @@ describe("stdio MCP protocol", () => {
 
     await new Promise((resolve) => setTimeout(resolve, 25));
     expect(stderrLines.join("")).toContain('"message":"server_started"');
+    expect(stderrLines.join("")).toContain('"command_mode":"allowlist"');
   });
 
   it("returns a structured tool error for policy-limit input", async () => {

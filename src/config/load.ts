@@ -22,6 +22,42 @@ const DEFAULT_COMMANDS: PolicyFile["commands"] = {
     allowed: true,
     readOnly: true,
   },
+  ls: {
+    allowed: true,
+    readOnly: true,
+  },
+  find: {
+    allowed: true,
+    readOnly: true,
+  },
+  cat: {
+    allowed: true,
+    readOnly: true,
+  },
+  head: {
+    allowed: true,
+    readOnly: true,
+  },
+  tail: {
+    allowed: true,
+    readOnly: true,
+  },
+  wc: {
+    allowed: true,
+    readOnly: true,
+  },
+  stat: {
+    allowed: true,
+    readOnly: true,
+  },
+  du: {
+    allowed: true,
+    readOnly: true,
+  },
+  pwd: {
+    allowed: true,
+    readOnly: true,
+  },
 };
 
 const DEFAULT_POLICY: PolicyFile = policyFileSchema.parse({
@@ -50,10 +86,21 @@ function parseBoolean(name: string, value: string | undefined): boolean | undefi
 function defaultTrustedDirectories(): string[] {
   if (process.platform === "win32") {
     const systemRoot = process.env["SystemRoot"] ?? process.env["WINDIR"];
-    return systemRoot === undefined ? [] : [path.join(systemRoot, "System32")];
+    return [
+      path.dirname(process.execPath),
+      ...(systemRoot === undefined ? [] : [path.join(systemRoot, "System32")]),
+    ];
   }
 
-  return ["/usr/bin", "/bin"];
+  return [path.dirname(process.execPath), "/usr/bin", "/bin"];
+}
+
+function inheritedPathDirectories(environment: ConfigurationEnvironment): string[] {
+  const pathValue =
+    environment["PATH"] ?? environment["Path"] ?? process.env["PATH"] ?? "";
+  return pathValue
+    .split(path.delimiter)
+    .filter((directory) => directory.length > 0 && path.isAbsolute(directory));
 }
 
 async function canonicalDirectory(
@@ -156,7 +203,10 @@ export async function loadPolicy(
   const explicitlyConfiguredTrustedDirectories =
     loaded.policy.trustedExecutableDirectories;
   const configuredTrustedDirectories =
-    explicitlyConfiguredTrustedDirectories ?? defaultTrustedDirectories();
+    explicitlyConfiguredTrustedDirectories ??
+    (loaded.policy.inheritExecutablePath
+      ? [...inheritedPathDirectories(environment), ...defaultTrustedDirectories()]
+      : defaultTrustedDirectories());
   const trustedBase =
     explicitlyConfiguredTrustedDirectories === undefined
       ? workingDirectory

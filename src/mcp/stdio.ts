@@ -58,6 +58,9 @@ async function main(): Promise<void> {
     max_batch_size: policy.maxBatchSize,
     max_concurrency: policy.maxConcurrency,
     read_only: policy.readOnly,
+    command_mode: policy.commandMode,
+    denied_command_count: policy.deniedCommands.length,
+    inherited_executable_path: policy.inheritExecutablePath,
   });
 }
 

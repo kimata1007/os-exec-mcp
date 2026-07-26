@@ -12,3 +12,9 @@ The supported security baseline is the current `main` branch on maintained Node.
 allowlist bypass, shell invocation, workspace escape through `cwd`, executable
 resolution hijacking, environment injection, unbounded output, or a child process
 surviving cancellation.
+
+`examples/policy.development.json` intentionally uses denylist command selection and
+inherits the parent process's executable `PATH`. It is an autonomy and convenience
+profile, not a security boundary: allowed runtimes, package scripts, build tools, and
+other executables can invoke denied commands indirectly. Use the read-only allowlist
+profile, a dedicated low-privilege account, or a container/VM for untrusted content.

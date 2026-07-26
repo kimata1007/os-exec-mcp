@@ -116,6 +116,20 @@ const FIND_DENIED_ARGUMENTS = new Set([
   "-ok",
   "-okdir",
 ]);
+const WORKSPACE_PATH_EXECUTABLES = new Set([
+  "cat",
+  "cp",
+  "du",
+  "find",
+  "head",
+  "ls",
+  "mkdir",
+  "mv",
+  "stat",
+  "tail",
+  "touch",
+  "wc",
+]);
 
 function normalizedExecutableName(executable: string): string {
   return process.platform === "win32" ? executable.toLowerCase() : executable;
@@ -250,7 +264,7 @@ async function resolveExecutable(
     for (const candidate of executableCandidates(directory, executable)) {
       const canonicalPath = await validateExecutable(
         candidate,
-        policy.trustedExecutableDirectories,
+        policy.inheritExecutablePath ? undefined : policy.trustedExecutableDirectories,
       );
       if (canonicalPath !== undefined) {
         return canonicalPath;
@@ -282,10 +296,18 @@ function rejectArgument(
 }
 
 function rejectPathEscape(argument: string, executable: string): void {
+  const equalsIndex = argument.indexOf("=");
+  const pathCandidates = [
+    argument,
+    ...(equalsIndex === -1 ? [] : [argument.slice(equalsIndex + 1)]),
+  ];
   if (
-    path.isAbsolute(argument) ||
-    path.win32.isAbsolute(argument) ||
-    /(?:^|[/\\])\.\.(?:[/\\]|$)/.test(argument)
+    pathCandidates.some(
+      (candidate) =>
+        path.isAbsolute(candidate) ||
+        path.win32.isAbsolute(candidate) ||
+        /(?:^|[/\\])\.\.(?:[/\\]|$)/.test(candidate),
+    )
   ) {
     throw new PolicyRejectionError(
       "argument_path_escape",
@@ -348,7 +370,11 @@ function hardenedArguments(
   if (executable === "find") {
     clientArguments.forEach((argument) => {
       rejectArgument(argument, FIND_DENIED_ARGUMENTS, [], "find");
-      rejectPathEscape(argument, "find");
+    });
+  }
+  if (WORKSPACE_PATH_EXECUTABLES.has(executable)) {
+    clientArguments.forEach((argument) => {
+      rejectPathEscape(argument, executable);
     });
   }
   return [...clientArguments];
@@ -365,6 +391,13 @@ function commandRule(
   return Object.entries(policy.commands).find(
     ([name]) => name.toLowerCase() === normalized,
   )?.[1];
+}
+
+function commandIsDenied(executable: string, policy: RuntimePolicy): boolean {
+  const normalized = normalizedExecutableName(executable);
+  return policy.deniedCommands.some(
+    (denied) => normalizedExecutableName(denied) === normalized,
+  );
 }
 
 export class CommandPolicyEvaluator {
@@ -390,7 +423,19 @@ export class CommandPolicyEvaluator {
       );
     }
 
-    const rule = commandRule(executable, this.policy);
+    if (commandIsDenied(executable, this.policy)) {
+      throw new PolicyRejectionError(
+        "command_denied",
+        `Executable ${executable} is denied by server policy`,
+      );
+    }
+
+    const configuredRule = commandRule(executable, this.policy);
+    const rule =
+      configuredRule ??
+      (this.policy.commandMode === "denylist"
+        ? { allowed: true, readOnly: false }
+        : undefined);
     if (rule?.allowed !== true) {
       throw new PolicyRejectionError(
         "command_not_allowed",

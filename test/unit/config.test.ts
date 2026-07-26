@@ -29,7 +29,38 @@ describe("policy loading", () => {
 
     expect(policy.workspaceRoots).toEqual([await realpath(root)]);
     expect(policy.readOnly).toBe(true);
+    expect(policy.maxConcurrency).toBe(16);
+    expect(policy.defaultConcurrency).toBe(8);
+    expect(policy.commandMode).toBe("allowlist");
+    expect(policy.inheritExecutablePath).toBe(false);
     expect(policy.commands["git"]?.allowedSubcommands).toContain("status");
+    expect(policy.commands["ls"]?.readOnly).toBe(true);
+    expect(policy.commands["find"]?.readOnly).toBe(true);
+    expect(policy.trustedExecutableDirectories).toContain(
+      await realpath(path.dirname(process.execPath)),
+    );
+  });
+
+  it("loads the development policy for independent reads and writes", async () => {
+    const root = await temporaryDirectory();
+    const policy = await loadPolicy(
+      {
+        OS_BATCH_POLICY_FILE: path.resolve("examples/policy.development.json"),
+        OS_BATCH_WORKSPACE_ROOT: root,
+      },
+      process.cwd(),
+    );
+
+    expect(policy.readOnly).toBe(false);
+    expect(policy.maxConcurrency).toBe(16);
+    expect(policy.commandMode).toBe("denylist");
+    expect(policy.inheritExecutablePath).toBe(true);
+    expect(policy.deniedCommands).toContain("rm");
+    expect(policy.deniedCommands).toContain("sudo");
+    expect(policy.commands).toEqual({});
+    expect(policy.trustedExecutableDirectories).toContain(
+      await realpath(path.dirname(process.execPath)),
+    );
   });
 
   it("loads a strict JSON policy relative to the policy file", async () => {
