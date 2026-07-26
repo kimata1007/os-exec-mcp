@@ -1,0 +1,716 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-07-26T04:47:17.615Z",
+  "host": {
+    "platform": "darwin",
+    "release": "25.1.0",
+    "arch": "arm64",
+    "cpu_count": 8,
+    "node": "v25.9.0"
+  },
+  "configuration": {
+    "samples": 3,
+    "maximum_concurrency": 16,
+    "synthetic_delay_ms": 100
+  },
+  "workloads": {
+    "scheduler": {
+      "kind": "synthetic_scheduler",
+      "description": "Sixteen independent Node processes that each wait for a fixed duration",
+      "task_count": 16,
+      "points": [
+        {
+          "requested_concurrency": 1,
+          "effective_concurrency": 1,
+          "measured": true,
+          "samples_ms": [
+            4422,
+            5621,
+            4010
+          ],
+          "p50_ms": 4422,
+          "p95_ms": 5621,
+          "speedup": 1,
+          "efficiency": 1
+        },
+        {
+          "requested_concurrency": 2,
+          "effective_concurrency": 2,
+          "measured": true,
+          "samples_ms": [
+            1966,
+            3509,
+            2134
+          ],
+          "p50_ms": 2134,
+          "p95_ms": 3509,
+          "speedup": 2.072,
+          "efficiency": 1.036
+        },
+        {
+          "requested_concurrency": 3,
+          "effective_concurrency": 3,
+          "measured": true,
+          "samples_ms": [
+            1799,
+            2568,
+            2079
+          ],
+          "p50_ms": 2079,
+          "p95_ms": 2568,
+          "speedup": 2.127,
+          "efficiency": 0.709
+        },
+        {
+          "requested_concurrency": 4,
+          "effective_concurrency": 4,
+          "measured": true,
+          "samples_ms": [
+            1405,
+            1645,
+            1809
+          ],
+          "p50_ms": 1645,
+          "p95_ms": 1809,
+          "speedup": 2.688,
+          "efficiency": 0.672
+        },
+        {
+          "requested_concurrency": 5,
+          "effective_concurrency": 5,
+          "measured": true,
+          "samples_ms": [
+            1419,
+            1566,
+            1952
+          ],
+          "p50_ms": 1566,
+          "p95_ms": 1952,
+          "speedup": 2.824,
+          "efficiency": 0.565
+        },
+        {
+          "requested_concurrency": 6,
+          "effective_concurrency": 6,
+          "measured": true,
+          "samples_ms": [
+            1296,
+            1820,
+            1089
+          ],
+          "p50_ms": 1296,
+          "p95_ms": 1820,
+          "speedup": 3.412,
+          "efficiency": 0.569
+        },
+        {
+          "requested_concurrency": 7,
+          "effective_concurrency": 7,
+          "measured": true,
+          "samples_ms": [
+            1258,
+            1572,
+            1151
+          ],
+          "p50_ms": 1258,
+          "p95_ms": 1572,
+          "speedup": 3.515,
+          "efficiency": 0.502
+        },
+        {
+          "requested_concurrency": 8,
+          "effective_concurrency": 8,
+          "measured": true,
+          "samples_ms": [
+            860,
+            976,
+            999
+          ],
+          "p50_ms": 976,
+          "p95_ms": 999,
+          "speedup": 4.531,
+          "efficiency": 0.566
+        },
+        {
+          "requested_concurrency": 9,
+          "effective_concurrency": 9,
+          "measured": true,
+          "samples_ms": [
+            900,
+            825,
+            869
+          ],
+          "p50_ms": 869,
+          "p95_ms": 900,
+          "speedup": 5.089,
+          "efficiency": 0.565
+        },
+        {
+          "requested_concurrency": 10,
+          "effective_concurrency": 10,
+          "measured": true,
+          "samples_ms": [
+            849,
+            1001,
+            1017
+          ],
+          "p50_ms": 1001,
+          "p95_ms": 1017,
+          "speedup": 4.418,
+          "efficiency": 0.442
+        },
+        {
+          "requested_concurrency": 11,
+          "effective_concurrency": 11,
+          "measured": true,
+          "samples_ms": [
+            918,
+            1078,
+            913
+          ],
+          "p50_ms": 918,
+          "p95_ms": 1078,
+          "speedup": 4.817,
+          "efficiency": 0.438
+        },
+        {
+          "requested_concurrency": 12,
+          "effective_concurrency": 12,
+          "measured": true,
+          "samples_ms": [
+            1161,
+            1173,
+            981
+          ],
+          "p50_ms": 1161,
+          "p95_ms": 1173,
+          "speedup": 3.809,
+          "efficiency": 0.317
+        },
+        {
+          "requested_concurrency": 13,
+          "effective_concurrency": 13,
+          "measured": true,
+          "samples_ms": [
+            1523,
+            980,
+            1174
+          ],
+          "p50_ms": 1174,
+          "p95_ms": 1523,
+          "speedup": 3.767,
+          "efficiency": 0.29
+        },
+        {
+          "requested_concurrency": 14,
+          "effective_concurrency": 14,
+          "measured": true,
+          "samples_ms": [
+            999,
+            1069,
+            1120
+          ],
+          "p50_ms": 1069,
+          "p95_ms": 1120,
+          "speedup": 4.137,
+          "efficiency": 0.295
+        },
+        {
+          "requested_concurrency": 15,
+          "effective_concurrency": 15,
+          "measured": true,
+          "samples_ms": [
+            1106,
+            1010,
+            1106
+          ],
+          "p50_ms": 1106,
+          "p95_ms": 1106,
+          "speedup": 3.998,
+          "efficiency": 0.267
+        },
+        {
+          "requested_concurrency": 16,
+          "effective_concurrency": 16,
+          "measured": true,
+          "samples_ms": [
+            1058,
+            909,
+            991
+          ],
+          "p50_ms": 991,
+          "p95_ms": 1058,
+          "speedup": 4.462,
+          "efficiency": 0.279
+        }
+      ]
+    },
+    "agent_verification": {
+      "kind": "real_project_verification",
+      "description": "Four natural post-edit checks: Prettier, ESLint, TypeScript, and Vitest",
+      "task_count": 4,
+      "tasks": [
+        "format",
+        "lint",
+        "typecheck",
+        "test"
+      ],
+      "inference_note": "Concurrency above four is a logical plateau because only four independent commands exist",
+      "points": [
+        {
+          "requested_concurrency": 1,
+          "effective_concurrency": 1,
+          "measured": true,
+          "samples_ms": [
+            16412,
+            15604,
+            16621
+          ],
+          "p50_ms": 16412,
+          "p95_ms": 16621,
+          "speedup": 1,
+          "efficiency": 1
+        },
+        {
+          "requested_concurrency": 2,
+          "effective_concurrency": 2,
+          "measured": true,
+          "samples_ms": [
+            11897,
+            11167,
+            23520
+          ],
+          "p50_ms": 11897,
+          "p95_ms": 23520,
+          "speedup": 1.38,
+          "efficiency": 0.69
+        },
+        {
+          "requested_concurrency": 3,
+          "effective_concurrency": 3,
+          "measured": true,
+          "samples_ms": [
+            10060,
+            9372,
+            12853
+          ],
+          "p50_ms": 10060,
+          "p95_ms": 12853,
+          "speedup": 1.631,
+          "efficiency": 0.544
+        },
+        {
+          "requested_concurrency": 4,
+          "effective_concurrency": 4,
+          "measured": true,
+          "samples_ms": [
+            10278,
+            7992,
+            10252
+          ],
+          "p50_ms": 10252,
+          "p95_ms": 10278,
+          "speedup": 1.601,
+          "efficiency": 0.4
+        },
+        {
+          "requested_concurrency": 5,
+          "effective_concurrency": 4,
+          "measured": false,
+          "inference": "No more than 4 commands can run concurrently",
+          "samples_ms": [],
+          "p50_ms": 10252,
+          "p95_ms": 10278,
+          "speedup": 1.601,
+          "efficiency": 0.4
+        },
+        {
+          "requested_concurrency": 6,
+          "effective_concurrency": 4,
+          "measured": false,
+          "inference": "No more than 4 commands can run concurrently",
+          "samples_ms": [],
+          "p50_ms": 10252,
+          "p95_ms": 10278,
+          "speedup": 1.601,
+          "efficiency": 0.4
+        },
+        {
+          "requested_concurrency": 7,
+          "effective_concurrency": 4,
+          "measured": false,
+          "inference": "No more than 4 commands can run concurrently",
+          "samples_ms": [],
+          "p50_ms": 10252,
+          "p95_ms": 10278,
+          "speedup": 1.601,
+          "efficiency": 0.4
+        },
+        {
+          "requested_concurrency": 8,
+          "effective_concurrency": 4,
+          "measured": false,
+          "inference": "No more than 4 commands can run concurrently",
+          "samples_ms": [],
+          "p50_ms": 10252,
+          "p95_ms": 10278,
+          "speedup": 1.601,
+          "efficiency": 0.4
+        },
+        {
+          "requested_concurrency": 9,
+          "effective_concurrency": 4,
+          "measured": false,
+          "inference": "No more than 4 commands can run concurrently",
+          "samples_ms": [],
+          "p50_ms": 10252,
+          "p95_ms": 10278,
+          "speedup": 1.601,
+          "efficiency": 0.4
+        },
+        {
+          "requested_concurrency": 10,
+          "effective_concurrency": 4,
+          "measured": false,
+          "inference": "No more than 4 commands can run concurrently",
+          "samples_ms": [],
+          "p50_ms": 10252,
+          "p95_ms": 10278,
+          "speedup": 1.601,
+          "efficiency": 0.4
+        },
+        {
+          "requested_concurrency": 11,
+          "effective_concurrency": 4,
+          "measured": false,
+          "inference": "No more than 4 commands can run concurrently",
+          "samples_ms": [],
+          "p50_ms": 10252,
+          "p95_ms": 10278,
+          "speedup": 1.601,
+          "efficiency": 0.4
+        },
+        {
+          "requested_concurrency": 12,
+          "effective_concurrency": 4,
+          "measured": false,
+          "inference": "No more than 4 commands can run concurrently",
+          "samples_ms": [],
+          "p50_ms": 10252,
+          "p95_ms": 10278,
+          "speedup": 1.601,
+          "efficiency": 0.4
+        },
+        {
+          "requested_concurrency": 13,
+          "effective_concurrency": 4,
+          "measured": false,
+          "inference": "No more than 4 commands can run concurrently",
+          "samples_ms": [],
+          "p50_ms": 10252,
+          "p95_ms": 10278,
+          "speedup": 1.601,
+          "efficiency": 0.4
+        },
+        {
+          "requested_concurrency": 14,
+          "effective_concurrency": 4,
+          "measured": false,
+          "inference": "No more than 4 commands can run concurrently",
+          "samples_ms": [],
+          "p50_ms": 10252,
+          "p95_ms": 10278,
+          "speedup": 1.601,
+          "efficiency": 0.4
+        },
+        {
+          "requested_concurrency": 15,
+          "effective_concurrency": 4,
+          "measured": false,
+          "inference": "No more than 4 commands can run concurrently",
+          "samples_ms": [],
+          "p50_ms": 10252,
+          "p95_ms": 10278,
+          "speedup": 1.601,
+          "efficiency": 0.4
+        },
+        {
+          "requested_concurrency": 16,
+          "effective_concurrency": 4,
+          "measured": false,
+          "inference": "No more than 4 commands can run concurrently",
+          "samples_ms": [],
+          "p50_ms": 10252,
+          "p95_ms": 10278,
+          "speedup": 1.601,
+          "efficiency": 0.4
+        }
+      ]
+    }
+  },
+  "end_to_end_model": {
+    "kind": "amdahl_scenarios",
+    "description": "Normalized whole-task duration derived from the measured verification curve; this is a model, not observed AI reasoning time",
+    "formula": "total(c) = (1 - command_share) + command_share * command_time(c) / command_time(1)",
+    "scenarios": [
+      {
+        "command_share_percent": 10,
+        "interpretation": "Share of the concurrency=1 end-to-end duration spent in the command phase",
+        "points": [
+          {
+            "requested_concurrency": 1,
+            "normalized_total_percent": 100,
+            "total_speedup": 1
+          },
+          {
+            "requested_concurrency": 2,
+            "normalized_total_percent": 97.25,
+            "total_speedup": 1.028
+          },
+          {
+            "requested_concurrency": 3,
+            "normalized_total_percent": 96.13,
+            "total_speedup": 1.04
+          },
+          {
+            "requested_concurrency": 4,
+            "normalized_total_percent": 96.25,
+            "total_speedup": 1.039
+          },
+          {
+            "requested_concurrency": 5,
+            "normalized_total_percent": 96.25,
+            "total_speedup": 1.039
+          },
+          {
+            "requested_concurrency": 6,
+            "normalized_total_percent": 96.25,
+            "total_speedup": 1.039
+          },
+          {
+            "requested_concurrency": 7,
+            "normalized_total_percent": 96.25,
+            "total_speedup": 1.039
+          },
+          {
+            "requested_concurrency": 8,
+            "normalized_total_percent": 96.25,
+            "total_speedup": 1.039
+          },
+          {
+            "requested_concurrency": 9,
+            "normalized_total_percent": 96.25,
+            "total_speedup": 1.039
+          },
+          {
+            "requested_concurrency": 10,
+            "normalized_total_percent": 96.25,
+            "total_speedup": 1.039
+          },
+          {
+            "requested_concurrency": 11,
+            "normalized_total_percent": 96.25,
+            "total_speedup": 1.039
+          },
+          {
+            "requested_concurrency": 12,
+            "normalized_total_percent": 96.25,
+            "total_speedup": 1.039
+          },
+          {
+            "requested_concurrency": 13,
+            "normalized_total_percent": 96.25,
+            "total_speedup": 1.039
+          },
+          {
+            "requested_concurrency": 14,
+            "normalized_total_percent": 96.25,
+            "total_speedup": 1.039
+          },
+          {
+            "requested_concurrency": 15,
+            "normalized_total_percent": 96.25,
+            "total_speedup": 1.039
+          },
+          {
+            "requested_concurrency": 16,
+            "normalized_total_percent": 96.25,
+            "total_speedup": 1.039
+          }
+        ]
+      },
+      {
+        "command_share_percent": 25,
+        "interpretation": "Share of the concurrency=1 end-to-end duration spent in the command phase",
+        "points": [
+          {
+            "requested_concurrency": 1,
+            "normalized_total_percent": 100,
+            "total_speedup": 1
+          },
+          {
+            "requested_concurrency": 2,
+            "normalized_total_percent": 93.12,
+            "total_speedup": 1.074
+          },
+          {
+            "requested_concurrency": 3,
+            "normalized_total_percent": 90.32,
+            "total_speedup": 1.107
+          },
+          {
+            "requested_concurrency": 4,
+            "normalized_total_percent": 90.62,
+            "total_speedup": 1.104
+          },
+          {
+            "requested_concurrency": 5,
+            "normalized_total_percent": 90.62,
+            "total_speedup": 1.104
+          },
+          {
+            "requested_concurrency": 6,
+            "normalized_total_percent": 90.62,
+            "total_speedup": 1.104
+          },
+          {
+            "requested_concurrency": 7,
+            "normalized_total_percent": 90.62,
+            "total_speedup": 1.104
+          },
+          {
+            "requested_concurrency": 8,
+            "normalized_total_percent": 90.62,
+            "total_speedup": 1.104
+          },
+          {
+            "requested_concurrency": 9,
+            "normalized_total_percent": 90.62,
+            "total_speedup": 1.104
+          },
+          {
+            "requested_concurrency": 10,
+            "normalized_total_percent": 90.62,
+            "total_speedup": 1.104
+          },
+          {
+            "requested_concurrency": 11,
+            "normalized_total_percent": 90.62,
+            "total_speedup": 1.104
+          },
+          {
+            "requested_concurrency": 12,
+            "normalized_total_percent": 90.62,
+            "total_speedup": 1.104
+          },
+          {
+            "requested_concurrency": 13,
+            "normalized_total_percent": 90.62,
+            "total_speedup": 1.104
+          },
+          {
+            "requested_concurrency": 14,
+            "normalized_total_percent": 90.62,
+            "total_speedup": 1.104
+          },
+          {
+            "requested_concurrency": 15,
+            "normalized_total_percent": 90.62,
+            "total_speedup": 1.104
+          },
+          {
+            "requested_concurrency": 16,
+            "normalized_total_percent": 90.62,
+            "total_speedup": 1.104
+          }
+        ]
+      },
+      {
+        "command_share_percent": 50,
+        "interpretation": "Share of the concurrency=1 end-to-end duration spent in the command phase",
+        "points": [
+          {
+            "requested_concurrency": 1,
+            "normalized_total_percent": 100,
+            "total_speedup": 1
+          },
+          {
+            "requested_concurrency": 2,
+            "normalized_total_percent": 86.24,
+            "total_speedup": 1.159
+          },
+          {
+            "requested_concurrency": 3,
+            "normalized_total_percent": 80.65,
+            "total_speedup": 1.24
+          },
+          {
+            "requested_concurrency": 4,
+            "normalized_total_percent": 81.23,
+            "total_speedup": 1.231
+          },
+          {
+            "requested_concurrency": 5,
+            "normalized_total_percent": 81.23,
+            "total_speedup": 1.231
+          },
+          {
+            "requested_concurrency": 6,
+            "normalized_total_percent": 81.23,
+            "total_speedup": 1.231
+          },
+          {
+            "requested_concurrency": 7,
+            "normalized_total_percent": 81.23,
+            "total_speedup": 1.231
+          },
+          {
+            "requested_concurrency": 8,
+            "normalized_total_percent": 81.23,
+            "total_speedup": 1.231
+          },
+          {
+            "requested_concurrency": 9,
+            "normalized_total_percent": 81.23,
+            "total_speedup": 1.231
+          },
+          {
+            "requested_concurrency": 10,
+            "normalized_total_percent": 81.23,
+            "total_speedup": 1.231
+          },
+          {
+            "requested_concurrency": 11,
+            "normalized_total_percent": 81.23,
+            "total_speedup": 1.231
+          },
+          {
+            "requested_concurrency": 12,
+            "normalized_total_percent": 81.23,
+            "total_speedup": 1.231
+          },
+          {
+            "requested_concurrency": 13,
+            "normalized_total_percent": 81.23,
+            "total_speedup": 1.231
+          },
+          {
+            "requested_concurrency": 14,
+            "normalized_total_percent": 81.23,
+            "total_speedup": 1.231
+          },
+          {
+            "requested_concurrency": 15,
+            "normalized_total_percent": 81.23,
+            "total_speedup": 1.231
+          },
+          {
+            "requested_concurrency": 16,
+            "normalized_total_percent": 81.23,
+            "total_speedup": 1.231
+          }
+        ]
+      }
+    ]
+  }
+}

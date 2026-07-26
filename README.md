@@ -317,7 +317,7 @@ rejection reason.
 The logger does not record command arguments, client environment maps, or output
 bodies. `request_id` is also returned to the client for correlation.
 
-## Tests and benchmark
+## Tests and benchmarks
 
 ```bash
 npm run format:check
@@ -325,7 +325,7 @@ npm run lint
 npm run typecheck
 npm test
 npm run build
-npm run benchmark
+npm run benchmark:component
 ```
 
 The test suite covers validation, policy decisions, path traversal and symlink escape,
@@ -334,19 +334,73 @@ exit, spawn error, timeout, process-tree cleanup, output truncation, ordering,
 concurrency, actual wall-clock parallelism, partial failure, fail-fast, cancellation,
 shutdown, MCP initialize, `tools/list`, `tools/call`, and stderr logging.
 
-The benchmark runs four 250 ms Node fixture processes first with concurrency 1 and
-then with concurrency 4:
+### Component benchmark
 
-```text
-sequential_wall_time_ms=1915
-batch_wall_time_ms=431
-speedup=4.44
-commands=4
-concurrency=4
+The component benchmark separates two workloads:
+
+- **Scheduler workload:** 16 independent Node processes that each wait for 100 ms,
+  measured at every requested concurrency from 1 through 16.
+- **Agent verification workload:** the four natural post-edit checks `format`,
+  `lint`, `typecheck`, and `test`, measured from concurrency 1 through 4.
+  Concurrency 5 through 16 is shown as an inferred plateau because only four
+  independent commands exist.
+
+![Component benchmark: command time and whole-task scenarios](benchmark/results/component-latest.svg)
+
+The latest development-host p50 results, using three samples per measured point:
+
+| Workload                   | Concurrency 1 | Best natural concurrency | Speedup |
+| -------------------------- | ------------: | -----------------------: | ------: |
+| 16-process scheduler       |       4422 ms |           991 ms at c=16 |   4.46× |
+| Four verification commands |      16412 ms |          10252 ms at c=4 |   1.60× |
+
+The second plot applies the measured verification curve to Amdahl-style whole-task
+scenarios. At concurrency 4, normalized total duration is:
+
+| Commands' share of the original total | Remaining total | Total speedup |
+| ------------------------------------: | --------------: | ------------: |
+|                                   10% |          96.25% |         1.04× |
+|                                   25% |          90.62% |         1.10× |
+|                                   50% |          81.23% |         1.23× |
+
+These whole-task lines are models, not observed AI reasoning time. The raw samples,
+p50/p95 values, host metadata, and formulas are in
+[`benchmark/results/component-latest.json`](benchmark/results/component-latest.json).
+This sample was measured on the development macOS host on 2026-07-26 and is not a
+performance guarantee.
+
+### Empty repository to GitHub Pages
+
+The end-to-end benchmark measures a separate product-level outcome: an AI agent
+starts in an empty directory, creates a fixed TypeScript application, initializes
+Git, creates and pushes a public GitHub repository, configures branch-based GitHub
+Pages, and waits until the public URL returns a per-run marker.
+
+The fixed task, safety rules, alternating baseline/MCP trial protocol, milestone
+definitions, and reporting requirements are in
+[`benchmark/e2e/README.md`](benchmark/e2e/README.md). Copy and review the example
+configuration before running:
+
+```bash
+cp benchmark/e2e/config.example.json benchmark/e2e/config.local.json
+npm run benchmark:e2e -- \
+  --config benchmark/e2e/config.local.json \
+  --mode baseline \
+  --trial baseline-01
+npm run benchmark:e2e -- \
+  --config benchmark/e2e/config.local.json \
+  --mode mcp \
+  --trial mcp-01
+npm run benchmark:e2e:report
 ```
 
-This sample was measured on the development macOS host on 2026-07-26. It is a
-development demonstration, not a performance guarantee.
+No end-to-end trial result is committed yet; the component plot's whole-task curves
+must not be presented as a substitute for observed agent runs.
+
+Every trial intentionally creates a public repository and website, refuses to reuse
+an existing name, and never deletes it automatically. GitHub Pages publication wait
+is recorded separately from agent-process and local-work milestones. Private model
+reasoning is not observable and is never claimed as a directly measured metric.
 
 ## Codex setup
 

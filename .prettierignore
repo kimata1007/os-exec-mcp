@@ -1,4 +1,6 @@
 dist
 coverage
 node_modules
+benchmark/results/*.svg
+benchmark/results/*.json
 package-lock.json

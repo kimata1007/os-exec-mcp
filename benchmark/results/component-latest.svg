@@ -1,0 +1,120 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="930" viewBox="0 0 1200 930" role="img" aria-labelledby="title description">
+  <title id="title">os-batch-mcp component benchmark</title>
+  <desc id="description">Command-only completion time from concurrency one to sixteen, followed by normalized end-to-end duration scenarios where commands occupy ten, twenty-five, or fifty percent of the original task.</desc>
+  <style>
+    text { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #172033; }
+    .title { font-size: 22px; font-weight: 600; }
+    .subtitle { font-size: 14px; fill: #536075; }
+    .axis-label { font-size: 14px; font-weight: 600; }
+    .tick { font-size: 12px; fill: #5d687a; }
+    .grid { stroke: #d7dde7; stroke-width: 1; }
+    .grid.vertical { stroke: #edf0f5; }
+    .line { fill: none; stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
+    .point { stroke: #ffffff; stroke-width: 2; }
+    .legend { font-size: 13px; }
+    .note { font-size: 12px; fill: #5d687a; }
+    @media (prefers-color-scheme: dark) {
+      text { fill: #eef2f8; }
+      .subtitle, .tick, .note { fill: #aab4c5; }
+      .grid { stroke: #455065; }
+      .grid.vertical { stroke: #2f394b; }
+      .point { stroke: #151b28; }
+    }
+  </style>
+  <text class="title" x="92" y="36">Command phase: measured wall time</text>
+  <text class="subtitle" x="92" y="60">p50 of 3 samples; scheduler uses 16 × 100 ms processes, verification uses format + lint + typecheck + test</text>
+
+      <line class="grid" x1="92" x2="1145" y1="385" y2="385" />
+      <text class="tick" x="78" y="390" text-anchor="end">0s</text>
+      <line class="grid" x1="92" x2="1145" y1="326" y2="326" />
+      <text class="tick" x="78" y="331" text-anchor="end">4s</text>
+      <line class="grid" x1="92" x2="1145" y1="267" y2="267" />
+      <text class="tick" x="78" y="272" text-anchor="end">8s</text>
+      <line class="grid" x1="92" x2="1145" y1="208" y2="208" />
+      <text class="tick" x="78" y="213" text-anchor="end">12s</text>
+      <line class="grid" x1="92" x2="1145" y1="149" y2="149" />
+      <text class="tick" x="78" y="154" text-anchor="end">16s</text>
+      <line class="grid" x1="92" x2="1145" y1="90" y2="90" />
+      <text class="tick" x="78" y="95" text-anchor="end">20s</text>
+
+      <line class="grid vertical" x1="92" x2="92" y1="90" y2="385" />
+      <text class="tick" x="92" y="410" text-anchor="middle">1</text>
+      <line class="grid vertical" x1="162.2" x2="162.2" y1="90" y2="385" />
+      <text class="tick" x="162.2" y="410" text-anchor="middle">2</text>
+      <line class="grid vertical" x1="302.6" x2="302.6" y1="90" y2="385" />
+      <text class="tick" x="302.6" y="410" text-anchor="middle">4</text>
+      <line class="grid vertical" x1="443" x2="443" y1="90" y2="385" />
+      <text class="tick" x="443" y="410" text-anchor="middle">6</text>
+      <line class="grid vertical" x1="583.4000000000001" x2="583.4000000000001" y1="90" y2="385" />
+      <text class="tick" x="583.4000000000001" y="410" text-anchor="middle">8</text>
+      <line class="grid vertical" x1="723.8" x2="723.8" y1="90" y2="385" />
+      <text class="tick" x="723.8" y="410" text-anchor="middle">10</text>
+      <line class="grid vertical" x1="864.1999999999999" x2="864.1999999999999" y1="90" y2="385" />
+      <text class="tick" x="864.1999999999999" y="410" text-anchor="middle">12</text>
+      <line class="grid vertical" x1="1004.6" x2="1004.6" y1="90" y2="385" />
+      <text class="tick" x="1004.6" y="410" text-anchor="middle">14</text>
+      <line class="grid vertical" x1="1145" x2="1145" y1="90" y2="385" />
+      <text class="tick" x="1145" y="410" text-anchor="middle">16</text>
+  <text class="axis-label" x="618.5" y="437" text-anchor="middle">Requested concurrency</text>
+  <path class="line" stroke="#2563eb" d="M92.0,319.8 L162.2,353.5 L232.4,354.3 L302.6,360.7 L372.8,361.9 L443.0,365.9 L513.2,366.4 L583.4,370.6 L653.6,372.2 L723.8,370.2 L794.0,371.5 L864.2,367.9 L934.4,367.7 L1004.6,369.2 L1074.8,368.7 L1145.0,370.4" />
+  <circle class="point" fill="#2563eb" cx="92" cy="319.7755" r="4" /><circle class="point" fill="#2563eb" cx="162.2" cy="353.5235" r="4" /><circle class="point" fill="#2563eb" cx="232.4" cy="354.33475" r="4" /><circle class="point" fill="#2563eb" cx="302.6" cy="360.73625" r="4" /><circle class="point" fill="#2563eb" cx="372.8" cy="361.9015" r="4" /><circle class="point" fill="#2563eb" cx="443" cy="365.884" r="4" /><circle class="point" fill="#2563eb" cx="513.2" cy="366.4445" r="4" /><circle class="point" fill="#2563eb" cx="583.4000000000001" cy="370.604" r="4" /><circle class="point" fill="#2563eb" cx="653.6" cy="372.18225" r="4" /><circle class="point" fill="#2563eb" cx="723.8" cy="370.23525" r="4" /><circle class="point" fill="#2563eb" cx="794" cy="371.4595" r="4" /><circle class="point" fill="#2563eb" cx="864.1999999999999" cy="367.87525" r="4" /><circle class="point" fill="#2563eb" cx="934.4000000000001" cy="367.6835" r="4" /><circle class="point" fill="#2563eb" cx="1004.6" cy="369.23225" r="4" /><circle class="point" fill="#2563eb" cx="1074.8000000000002" cy="368.6865" r="4" /><circle class="point" fill="#2563eb" cx="1145" cy="370.38275" r="4" />
+  <path class="line" stroke="#ea580c" d="M92.0,142.9 L162.2,209.5 L232.4,236.6 L302.6,233.8" />
+  <path class="line" stroke="#ea580c" stroke-dasharray="8 7" d="M302.6,233.8 L372.8,233.8 L443.0,233.8 L513.2,233.8 L583.4,233.8 L653.6,233.8 L723.8,233.8 L794.0,233.8 L864.2,233.8 L934.4,233.8 L1004.6,233.8 L1074.8,233.8 L1145.0,233.8" />
+  <circle class="point" fill="#ea580c" cx="92" cy="142.923" r="5" /><circle class="point" fill="#ea580c" cx="162.2" cy="209.51925" r="5" /><circle class="point" fill="#ea580c" cx="232.4" cy="236.615" r="5" /><circle class="point" fill="#ea580c" cx="302.6" cy="233.783" r="5" />
+  <line x1="752" x2="792" y1="100" y2="100" stroke="#2563eb" stroke-width="3" />
+  <text class="legend" x="804" y="105">Scheduler workload (16 tasks)</text>
+  <line x1="752" x2="792" y1="127" y2="127" stroke="#ea580c" stroke-width="3" />
+  <text class="legend" x="804" y="132">Agent verification (4 natural tasks)</text>
+  <text class="note" x="314.6" y="221.783">Dashed after 4: inferred plateau, not extra measurements</text>
+
+  <text class="title" x="92" y="478">Whole task: command share scenarios</text>
+  <text class="subtitle" x="92" y="502">Amdahl model using the measured verification curve; 100% is the concurrency=1 end-to-end duration</text>
+
+      <line class="grid" x1="92" x2="1145" y1="840" y2="840" />
+      <text class="tick" x="78" y="845" text-anchor="end">75%</text>
+      <line class="grid" x1="92" x2="1145" y1="781" y2="781" />
+      <text class="tick" x="78" y="786" text-anchor="end">80%</text>
+      <line class="grid" x1="92" x2="1145" y1="722" y2="722" />
+      <text class="tick" x="78" y="727" text-anchor="end">85%</text>
+      <line class="grid" x1="92" x2="1145" y1="663" y2="663" />
+      <text class="tick" x="78" y="668" text-anchor="end">90%</text>
+      <line class="grid" x1="92" x2="1145" y1="604" y2="604" />
+      <text class="tick" x="78" y="609" text-anchor="end">95%</text>
+      <line class="grid" x1="92" x2="1145" y1="545" y2="545" />
+      <text class="tick" x="78" y="550" text-anchor="end">100%</text>
+
+      <line class="grid vertical" x1="92" x2="92" y1="545" y2="840" />
+      <text class="tick" x="92" y="865" text-anchor="middle">1</text>
+      <line class="grid vertical" x1="162.2" x2="162.2" y1="545" y2="840" />
+      <text class="tick" x="162.2" y="865" text-anchor="middle">2</text>
+      <line class="grid vertical" x1="302.6" x2="302.6" y1="545" y2="840" />
+      <text class="tick" x="302.6" y="865" text-anchor="middle">4</text>
+      <line class="grid vertical" x1="443" x2="443" y1="545" y2="840" />
+      <text class="tick" x="443" y="865" text-anchor="middle">6</text>
+      <line class="grid vertical" x1="583.4000000000001" x2="583.4000000000001" y1="545" y2="840" />
+      <text class="tick" x="583.4000000000001" y="865" text-anchor="middle">8</text>
+      <line class="grid vertical" x1="723.8" x2="723.8" y1="545" y2="840" />
+      <text class="tick" x="723.8" y="865" text-anchor="middle">10</text>
+      <line class="grid vertical" x1="864.1999999999999" x2="864.1999999999999" y1="545" y2="840" />
+      <text class="tick" x="864.1999999999999" y="865" text-anchor="middle">12</text>
+      <line class="grid vertical" x1="1004.6" x2="1004.6" y1="545" y2="840" />
+      <text class="tick" x="1004.6" y="865" text-anchor="middle">14</text>
+      <line class="grid vertical" x1="1145" x2="1145" y1="545" y2="840" />
+      <text class="tick" x="1145" y="865" text-anchor="middle">16</text>
+  <text class="axis-label" x="618.5" y="892" text-anchor="middle">Requested concurrency</text>
+
+  <path class="line" stroke="#16a34a" d="M92.0,545.0 L162.2,577.5 L232.4,590.7 L302.6,589.3 L372.8,589.3 L443.0,589.3 L513.2,589.3 L583.4,589.3 L653.6,589.3 L723.8,589.3 L794.0,589.3 L864.2,589.3 L934.4,589.3 L1004.6,589.3 L1074.8,589.3 L1145.0,589.3" />
+  <circle class="point" fill="#16a34a" cx="92" cy="545" r="4" /><circle class="point" fill="#16a34a" cx="162.2" cy="577.45" r="4" /><circle class="point" fill="#16a34a" cx="302.6" cy="589.25" r="4" /><circle class="point" fill="#16a34a" cx="583.4000000000001" cy="589.25" r="4" /><circle class="point" fill="#16a34a" cx="1145" cy="589.25" r="4" />
+  <path class="line" stroke="#7c3aed" d="M92.0,545.0 L162.2,626.2 L232.4,659.2 L302.6,655.7 L372.8,655.7 L443.0,655.7 L513.2,655.7 L583.4,655.7 L653.6,655.7 L723.8,655.7 L794.0,655.7 L864.2,655.7 L934.4,655.7 L1004.6,655.7 L1074.8,655.7 L1145.0,655.7" />
+  <circle class="point" fill="#7c3aed" cx="92" cy="545" r="4" /><circle class="point" fill="#7c3aed" cx="162.2" cy="626.184" r="4" /><circle class="point" fill="#7c3aed" cx="302.6" cy="655.684" r="4" /><circle class="point" fill="#7c3aed" cx="583.4000000000001" cy="655.684" r="4" /><circle class="point" fill="#7c3aed" cx="1145" cy="655.684" r="4" />
+  <path class="line" stroke="#dc2626" d="M92.0,545.0 L162.2,707.4 L232.4,773.3 L302.6,766.5 L372.8,766.5 L443.0,766.5 L513.2,766.5 L583.4,766.5 L653.6,766.5 L723.8,766.5 L794.0,766.5 L864.2,766.5 L934.4,766.5 L1004.6,766.5 L1074.8,766.5 L1145.0,766.5" />
+  <circle class="point" fill="#dc2626" cx="92" cy="545" r="4" /><circle class="point" fill="#dc2626" cx="162.2" cy="707.368" r="4" /><circle class="point" fill="#dc2626" cx="302.6" cy="766.486" r="4" /><circle class="point" fill="#dc2626" cx="583.4000000000001" cy="766.486" r="4" /><circle class="point" fill="#dc2626" cx="1145" cy="766.486" r="4" />
+
+  <line x1="752" x2="792" y1="555" y2="555" stroke="#16a34a" stroke-width="3" />
+  <text class="legend" x="804" y="560">Commands are 10% of baseline total</text>
+  <line x1="752" x2="792" y1="582" y2="582" stroke="#7c3aed" stroke-width="3" />
+  <text class="legend" x="804" y="587">Commands are 25% of baseline total</text>
+  <line x1="752" x2="792" y1="609" y2="609" stroke="#dc2626" stroke-width="3" />
+  <text class="legend" x="804" y="614">Commands are 50% of baseline total</text>
+  <text class="note" x="1145" y="920" text-anchor="end">Generated 2026-07-26T04:47:17.615Z on darwin arm64, Node v25.9.0</text>
+</svg>
