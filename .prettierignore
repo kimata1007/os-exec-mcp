@@ -1,0 +1,7 @@
+dist
+coverage
+node_modules
+benchmark/results/*.svg
+benchmark/results/*.json
+benchmark/results/e2e-local/
+package-lock.json

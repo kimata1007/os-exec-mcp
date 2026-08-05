@@ -1,0 +1,11 @@
+[mcp_servers.os-exec]
+command = "node"
+args = ["/absolute/path/to/os-exec-mcp/dist/mcp/stdio.js"]
+cwd = "/absolute/path/to/workspace"
+startup_timeout_sec = 10.0
+tool_timeout_sec = 70.0
+required = false
+
+[mcp_servers.os-exec.env]
+OS_EXEC_POLICY_FILE = "/absolute/path/to/os-exec-mcp/examples/policy.development.json"
+OS_EXEC_WORKSPACE_ROOT = "/absolute/path/to/workspace"

@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "os-exec": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${OS_EXEC_MCP_HOME}/dist/mcp/stdio.js"],
+      "env": {
+        "OS_EXEC_POLICY_FILE": "${OS_EXEC_MCP_HOME}/examples/policy.development.json",
+        "OS_EXEC_WORKSPACE_ROOT": "${CLAUDE_PROJECT_DIR:-.}"
+      }
+    }
+  }
+}
