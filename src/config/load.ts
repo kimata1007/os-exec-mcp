@@ -265,6 +265,10 @@ export async function loadPolicy(
     "OS_EXEC_READ_ONLY",
     renamedEnvironmentValue(environment, "OS_EXEC_READ_ONLY", "OS_BATCH_READ_ONLY"),
   );
+  const legacyToolsOverride = parseBoolean(
+    "OS_EXEC_LEGACY_TOOLS",
+    environment["OS_EXEC_LEGACY_TOOLS"],
+  );
 
   return {
     ...loaded.policy,
@@ -272,5 +276,6 @@ export async function loadPolicy(
     trustedExecutableDirectories: [...new Set(trustedExecutableDirectories)],
     logLevel: parsedLogLevel,
     readOnly: readOnlyOverride ?? loaded.policy.readOnly,
+    legacyTools: legacyToolsOverride ?? loaded.policy.legacyTools,
   };
 }

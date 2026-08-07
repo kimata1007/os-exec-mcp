@@ -5,8 +5,13 @@ import process from "node:process";
 
 import { loadPolicy } from "../config/load.js";
 import { BatchExecutor } from "../executor/batch-executor.js";
+import { ExecExecutor } from "../executor/exec-executor.js";
+import { ExecutionLimiter } from "../executor/execution-limiter.js";
+import { OutputArtifactStore } from "../executor/output-artifact-store.js";
+import { ProcessRunner } from "../executor/process-runner.js";
 import { WorkflowExecutor } from "../executor/workflow-executor.js";
 import { createLogger, type Logger } from "../observability/logger.js";
+import { ProgramExecutor } from "../program/program-executor.js";
 import { resolveCliEnvironment } from "./options.js";
 import { createOsExecMcpServer } from "./server.js";
 
@@ -14,9 +19,37 @@ async function main(): Promise<void> {
   const environment = resolveCliEnvironment(process.argv.slice(2), process.env);
   const policy = await loadPolicy(environment);
   const logger = createLogger(policy.logLevel);
-  const executor = new BatchExecutor(policy, logger);
-  const workflowExecutor = new WorkflowExecutor(policy, logger);
-  const server = createOsExecMcpServer({ executor, workflowExecutor, logger });
+  const limiter = new ExecutionLimiter(policy.maxConcurrency);
+  const artifactStore = policy.persistTruncatedOutput
+    ? new OutputArtifactStore(
+        policy.persistedOutputTtlMs,
+        policy.persistedOutputMaxBytes,
+      )
+    : undefined;
+  const processRunner = new ProcessRunner(
+    logger,
+    limiter,
+    artifactStore,
+    artifactStore === undefined ? 0 : policy.persistedOutputMaxBytes,
+  );
+  const execExecutor = new ExecExecutor(policy, logger, processRunner);
+  const executor = new BatchExecutor(policy, logger, processRunner, execExecutor);
+  const workflowExecutor = new WorkflowExecutor(
+    policy,
+    logger,
+    processRunner,
+    execExecutor,
+  );
+  const programExecutor = new ProgramExecutor(policy, logger, processRunner);
+  const server = createOsExecMcpServer({
+    policy,
+    execExecutor,
+    programExecutor,
+    executor,
+    workflowExecutor,
+    logger,
+    ...(artifactStore === undefined ? {} : { artifactStore }),
+  });
   const transport = new StdioServerTransport();
   let shuttingDown = false;
 
@@ -27,7 +60,9 @@ async function main(): Promise<void> {
     shuttingDown = true;
     logger.info("server_stopping", { reason });
     process.exitCode = exitCode;
-    await Promise.all([executor.shutdown(), workflowExecutor.shutdown()]);
+    limiter.shutdown();
+    await processRunner.shutdown();
+    artifactStore?.clear();
     await server.close();
   };
 
@@ -61,6 +96,7 @@ async function main(): Promise<void> {
     workspace_root_count: policy.workspaceRoots.length,
     max_batch_size: policy.maxBatchSize,
     max_concurrency: policy.maxConcurrency,
+    legacy_tools: policy.legacyTools,
     read_only: policy.readOnly,
     command_mode: policy.commandMode,
     denied_command_count: policy.deniedCommands.length,

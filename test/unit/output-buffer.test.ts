@@ -32,4 +32,19 @@ describe("OutputBuffer", () => {
 
     expect(output.result().text).toContain("a");
   });
+
+  it("keeps deterministic head and tail context and strips terminal controls", () => {
+    const output = new OutputBuffer(40, "head_tail", true);
+    output.append(
+      Buffer.from("\u001b[31mBEGIN\r\n" + "x".repeat(100) + "END\u001b[0m"),
+    );
+
+    const result = output.result();
+    expect(result.truncated).toBe(true);
+    expect(result.text).toContain("bytes omitted");
+    expect(result.text).toContain("END");
+    expect(result.text).not.toContain("\u001b");
+    expect(result.text).not.toContain("\r");
+    expect(Buffer.byteLength(result.text)).toBeLessThanOrEqual(40);
+  });
 });

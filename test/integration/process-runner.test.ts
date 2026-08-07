@@ -5,6 +5,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { ProcessRunner } from "../../src/executor/process-runner.js";
+import { OutputArtifactStore } from "../../src/executor/output-artifact-store.js";
 import { createLogger } from "../../src/observability/logger.js";
 import { fixtureCommand } from "../helpers/runner.js";
 
@@ -104,6 +105,27 @@ describe("ProcessRunner", () => {
     expect(Buffer.byteLength(result.stderr)).toBe(4096);
     expect(result.stdout_truncated).toBe(true);
     expect(result.stderr_truncated).toBe(true);
+  });
+
+  it("optionally persists bounded truncated output behind an opaque resource URI", async () => {
+    const store = new OutputArtifactStore(60_000, 4096);
+    const processRunner = new ProcessRunner(
+      createLogger("silent"),
+      undefined,
+      store,
+      1024,
+    );
+    runners.push(processRunner);
+    const result = await processRunner.run(
+      fixtureCommand("persisted", ["large", "512"], { maxOutputBytes: 32 }),
+    );
+
+    expect(result.stdout_resource).toMatch(/^os-exec-output:\/\/\//);
+    expect(store.get(result.stdout_resource ?? "")).toMatchObject({
+      totalBytes: 512,
+      retainedBytes: 512,
+      truncated: false,
+    });
   });
 
   it("handles invalid UTF-8 output without crashing", async () => {

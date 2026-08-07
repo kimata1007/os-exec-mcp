@@ -10,10 +10,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import {
-  batchExecResultSchema,
-  workflowExecResultSchema,
-} from "../../src/mcp/schema.js";
+import { execProgramResultSchema, execResultSchema } from "../../src/mcp/schema.js";
 import { fixturePath } from "../helpers/runner.js";
 
 const clients: Client[] = [];
@@ -34,7 +31,10 @@ afterEach(async () => {
   );
 });
 
-async function connectedClient(): Promise<{
+async function connectedClient(
+  legacyTools = false,
+  persistOutput = false,
+): Promise<{
   client: Client;
   stderrLines: string[];
 }> {
@@ -56,6 +56,13 @@ async function connectedClient(): Promise<{
       maxTimeoutMs: 5_000,
       defaultMaxOutputBytes: 4096,
       absoluteMaxOutputBytes: 8192,
+      ...(persistOutput
+        ? {
+            persistTruncatedOutput: true,
+            persistedOutputTtlMs: 60_000,
+            persistedOutputMaxBytes: 4096,
+          }
+        : {}),
       allowedEnvironmentKeys: [],
       commands: {
         node: {
@@ -77,6 +84,7 @@ async function connectedClient(): Promise<{
     env: {
       ...getDefaultEnvironment(),
       OS_EXEC_POLICY_FILE: policyPath,
+      ...(legacyTools ? { OS_EXEC_LEGACY_TOOLS: "true" } : {}),
     },
     stderr: "pipe",
   });
@@ -100,27 +108,22 @@ async function connectedClient(): Promise<{
 }
 
 describe("stdio MCP protocol", () => {
-  it("initializes, lists both execution tools, and returns structured ordered batch results", async () => {
+  it("initializes, lists the unified tools, and returns structured ordered exec results", async () => {
     const { client, stderrLines } = await connectedClient();
 
     expect(client.getServerVersion()).toMatchObject({
       name: "os-exec-mcp",
-      version: "0.1.0",
+      version: "0.2.0",
     });
-    expect(client.getInstructions()).toContain(
-      "Proactively batch all independent operations",
-    );
+    expect(client.getInstructions()).toContain("Use exec to submit");
 
     const listed = await client.listTools();
-    expect(listed.tools.map(({ name }) => name)).toEqual([
-      "batch_exec",
-      "workflow_exec",
-    ]);
+    expect(listed.tools.map(({ name }) => name)).toEqual(["exec", "exec_program"]);
 
     const response = await client.callTool({
-      name: "batch_exec",
+      name: "exec",
       arguments: {
-        commands: [
+        steps: [
           {
             id: "first",
             argv: ["node", fixturePath, "echo", "one", "warning"],
@@ -134,7 +137,7 @@ describe("stdio MCP protocol", () => {
         failure_mode: "continue",
       },
     });
-    const result = batchExecResultSchema.parse(response.structuredContent);
+    const result = execResultSchema.parse(response.structuredContent);
 
     expect(response.isError).not.toBe(true);
     expect(result.results.map(({ id }) => id)).toEqual(["first", "second"]);
@@ -149,12 +152,12 @@ describe("stdio MCP protocol", () => {
     expect(stderrLines.join("")).toContain('"command_mode":"allowlist"');
   });
 
-  it("executes a dependency-aware workflow through MCP", async () => {
+  it("executes a dependency-aware graph through the same MCP tool", async () => {
     const { client } = await connectedClient();
     const response = await client.callTool({
-      name: "workflow_exec",
+      name: "exec",
       arguments: {
-        commands: [
+        steps: [
           {
             id: "first",
             argv: ["node", fixturePath, "echo", "one", ""],
@@ -168,23 +171,23 @@ describe("stdio MCP protocol", () => {
         concurrency: 2,
       },
     });
-    const result = workflowExecResultSchema.parse(response.structuredContent);
+    const result = execResultSchema.parse(response.structuredContent);
 
     expect(response.isError).not.toBe(true);
     expect(result.results.map(({ status }) => status)).toEqual(["success", "success"]);
     expect(result.results[1]).toMatchObject({
       depends_on: ["first"],
-      blocked_by: [],
     });
+    expect(result.results[1]?.blocked_by).toBeUndefined();
     expect(result.summary.peak_concurrency).toBe(1);
   });
 
   it("returns a structured tool error for policy-limit input", async () => {
     const { client } = await connectedClient();
     const response = await client.callTool({
-      name: "batch_exec",
+      name: "exec",
       arguments: {
-        commands: [
+        steps: [
           {
             id: "too-long",
             argv: ["node", fixturePath, "echo"],
@@ -204,5 +207,55 @@ describe("stdio MCP protocol", () => {
     expect(JSON.parse(errorResponse.content[0]?.text ?? "{}")).toMatchObject({
       error: { code: "invalid_input" },
     });
+  });
+
+  it("executes a sandboxed program through MCP", async () => {
+    const { client } = await connectedClient();
+    const argv = JSON.stringify(["node", fixturePath, "echo", "program", ""]);
+    const response = await client.callTool({
+      name: "exec_program",
+      arguments: {
+        source: `const result = await exec(${argv}); finish({ value: result.stdout });`,
+        allowed_executables: ["node"],
+      },
+    });
+    const result = execProgramResultSchema.parse(response.structuredContent);
+
+    expect(response.isError).not.toBe(true);
+    expect(result.value).toEqual({ value: "program" });
+    expect(result.summary.exec_calls).toBe(1);
+  });
+
+  it("exposes legacy adapters only when explicitly enabled", async () => {
+    const { client } = await connectedClient(true);
+    const listed = await client.listTools();
+    expect(listed.tools.map(({ name }) => name)).toEqual([
+      "exec",
+      "exec_program",
+      "batch_exec",
+      "workflow_exec",
+    ]);
+  });
+
+  it("exposes configured truncated output through an opaque temporary resource", async () => {
+    const { client } = await connectedClient(false, true);
+    const response = await client.callTool({
+      name: "exec",
+      arguments: {
+        steps: [{ id: "large", argv: ["node", fixturePath, "large", "128"] }],
+        output: { max_total_bytes: 32, max_stream_bytes: 32 },
+      },
+    });
+    const result = execResultSchema.parse(response.structuredContent);
+    const uri = result.results[0]?.stdout_resource;
+    expect(uri).toMatch(/^os-exec-output:\/\/\//);
+
+    const resource = await client.readResource({ uri: uri ?? "" });
+    const first = resource.contents[0];
+    expect(first).toMatchObject({ uri, mimeType: "text/plain" });
+    if (first === undefined || !("text" in first)) {
+      throw new Error("Expected a text output resource");
+    }
+    expect(first.text.length).toBe(128);
   });
 });

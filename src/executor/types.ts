@@ -1,4 +1,14 @@
 export type FailureMode = "continue" | "fail_fast";
+export type OutputMode = "compact" | "debug";
+export type OutputCapture = "head_tail" | "head";
+
+export type OutputOptions = {
+  mode?: OutputMode;
+  max_total_bytes?: number;
+  max_stream_bytes?: number;
+  capture?: OutputCapture;
+  strip_ansi?: boolean;
+};
 
 export type CommandRequest = {
   id: string;
@@ -24,6 +34,17 @@ export type WorkflowExecInput = {
   concurrency?: number;
   failure_mode?: FailureMode;
   max_output_bytes?: number;
+};
+
+export type CommandStep = CommandRequest & {
+  depends_on?: string[];
+};
+
+export type ExecInput = {
+  steps: CommandStep[];
+  concurrency?: number;
+  failure_mode?: FailureMode;
+  output?: OutputOptions;
 };
 
 export type ValidatedCommand = {
@@ -52,6 +73,21 @@ export type ValidatedWorkflowInput = {
   maxOutputBytes: number;
 };
 
+export type ValidatedOutputOptions = {
+  mode: OutputMode;
+  maxTotalBytes: number;
+  maxStreamBytes: number;
+  capture: OutputCapture;
+  stripAnsi: boolean;
+};
+
+export type ValidatedExecInput = {
+  steps: ValidatedWorkflowCommand[];
+  concurrency: number;
+  failureMode: FailureMode;
+  output: ValidatedOutputOptions;
+};
+
 export type CommandStatus =
   | "success"
   | "failed"
@@ -75,6 +111,9 @@ export type CommandResult = {
   duration_ms: number;
   error: string | null;
   rejection_reason: string | null;
+  global_queue_wait_ms: number;
+  stdout_resource?: string;
+  stderr_resource?: string;
 };
 
 export type BatchSummary = {
@@ -103,12 +142,20 @@ export type WorkflowCommandResult = CommandResult & {
 
 export type WorkflowSummary = BatchSummary & {
   peak_concurrency: number;
+  global_peak_concurrency: number;
 };
 
 export type WorkflowExecResult = {
   request_id: string;
   results: WorkflowCommandResult[];
   summary: WorkflowSummary;
+};
+
+export type ExecResult = {
+  request_id: string;
+  results: WorkflowCommandResult[];
+  summary: WorkflowSummary;
+  output_mode: OutputMode;
 };
 
 export type PreparedCommand = {
@@ -119,4 +166,6 @@ export type PreparedCommand = {
   timeoutMs: number;
   env: NodeJS.ProcessEnv;
   maxOutputBytes: number;
+  outputCapture: OutputCapture;
+  stripAnsi: boolean;
 };
