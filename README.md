@@ -324,6 +324,14 @@ OS/container sandbox when stronger isolation is required.
 
 ## Architecture
 
+Detailed Japanese documentation is available in [`docs/`](docs/README.md):
+
+- [C4 architecture and component responsibilities](docs/architecture.md)
+- [Static DAG, dynamic program, concurrency, and output flows](docs/execution-flows.md)
+- [MCP tool input, output, examples, and error reference](docs/tool-reference.md)
+- [Policy fields, defaults, environment variables, and migration](docs/configuration.md)
+- [Trust boundaries, threat model, controls, and residual risks](docs/security-model.md)
+
 1. `src/mcp/` owns schemas, tool registration, projection, and stdio lifecycle.
 2. `src/validation/` validates inputs and server limit overrides.
 3. `src/executor/exec-executor.ts` owns the single DAG scheduler.
