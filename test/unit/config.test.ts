@@ -127,6 +127,7 @@ describe("policy loading", () => {
         OS_EXEC_WORKSPACE_ROOT: workspace,
         OS_EXEC_LOG_LEVEL: "debug",
         OS_EXEC_READ_ONLY: "false",
+        OS_EXEC_LEGACY_TOOLS: "true",
       },
       directory,
     );
@@ -134,6 +135,7 @@ describe("policy loading", () => {
     expect(policy.workspaceRoots).toEqual([await realpath(workspace)]);
     expect(policy.logLevel).toBe("debug");
     expect(policy.readOnly).toBe(false);
+    expect(policy.legacyTools).toBe(true);
   });
 
   it("accepts legacy OS_BATCH environment aliases during the rename", async () => {

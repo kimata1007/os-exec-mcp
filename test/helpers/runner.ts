@@ -17,6 +17,8 @@ export function fixtureCommand(
     timeoutMs: 2_000,
     env: {},
     maxOutputBytes: 64 * 1024,
+    outputCapture: "head",
+    stripAnsi: false,
     ...overrides,
   };
 }

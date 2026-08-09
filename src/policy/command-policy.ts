@@ -407,6 +407,8 @@ export class CommandPolicyEvaluator {
   public async prepare(
     command: ValidatedCommand,
     maxOutputBytes: number,
+    outputCapture: PreparedCommand["outputCapture"] = "head",
+    stripAnsi = false,
   ): Promise<PreparedCommand> {
     const executable = command.argv[0];
     if (executable === undefined || !EXECUTABLE_NAME_PATTERN.test(executable)) {
@@ -481,6 +483,8 @@ export class CommandPolicyEvaluator {
       timeoutMs: command.timeoutMs,
       env: environment,
       maxOutputBytes,
+      outputCapture,
+      stripAnsi,
     };
   }
 }

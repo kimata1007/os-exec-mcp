@@ -4,6 +4,8 @@ import type { Readable } from "node:stream";
 
 import type { Logger } from "../observability/logger.js";
 import { OutputBuffer } from "./output-buffer.js";
+import { ExecutionLimiter, ExecutionLimiterError } from "./execution-limiter.js";
+import type { OutputArtifactStore } from "./output-artifact-store.js";
 import { terminateProcessTree } from "./process-tree.js";
 import type { CommandResult, PreparedCommand } from "./types.js";
 
@@ -67,6 +69,7 @@ function spawnErrorResult(
     duration_ms: durationSince(startedAt),
     error: error instanceof Error ? error.message : "Failed to spawn executable",
     rejection_reason: null,
+    global_queue_wait_ms: 0,
   };
 }
 
@@ -74,7 +77,16 @@ export class ProcessRunner {
   readonly #shutdownController = new AbortController();
   readonly #active = new Set<Promise<CommandResult>>();
 
-  public constructor(private readonly logger: Logger) {}
+  public constructor(
+    private readonly logger: Logger,
+    private readonly limiter = new ExecutionLimiter(16),
+    private readonly artifactStore?: OutputArtifactStore,
+    private readonly persistedOutputMaximumBytes = 0,
+  ) {}
+
+  public get globalPeakConcurrency(): number {
+    return this.limiter.peak;
+  }
 
   public run(command: PreparedCommand, signal?: AbortSignal): Promise<CommandResult> {
     const signals = [
@@ -82,7 +94,9 @@ export class ProcessRunner {
       ...(signal === undefined ? [] : [signal]),
     ];
     const combined = combineSignals(signals);
-    const running = this.#run(command, combined.signal).finally(combined.cleanup);
+    const running = this.#runLimited(command, combined.signal).finally(
+      combined.cleanup,
+    );
     this.#active.add(running);
     void running.finally(() => {
       this.#active.delete(running);
@@ -95,6 +109,42 @@ export class ProcessRunner {
       this.#shutdownController.abort(new Error("Server is shutting down"));
     }
     await Promise.allSettled([...this.#active]);
+  }
+
+  async #runLimited(
+    command: PreparedCommand,
+    signal: AbortSignal,
+  ): Promise<CommandResult> {
+    let permit;
+    try {
+      permit = await this.limiter.acquire(signal);
+    } catch (error) {
+      if (error instanceof ExecutionLimiterError) {
+        return {
+          id: command.id,
+          status: "cancelled",
+          exit_code: null,
+          signal: null,
+          stdout: "",
+          stderr: "",
+          stdout_bytes: 0,
+          stderr_bytes: 0,
+          stdout_truncated: false,
+          stderr_truncated: false,
+          duration_ms: 0,
+          error: error.message,
+          rejection_reason: null,
+          global_queue_wait_ms: 0,
+        };
+      }
+      throw error;
+    }
+    try {
+      const result = await this.#run(command, signal);
+      return { ...result, global_queue_wait_ms: permit.queueWaitMs };
+    } finally {
+      permit.release();
+    }
   }
 
   async #run(command: PreparedCommand, signal: AbortSignal): Promise<CommandResult> {
@@ -114,6 +164,7 @@ export class ProcessRunner {
         duration_ms: 0,
         error: "Command cancelled before it started",
         rejection_reason: null,
+        global_queue_wait_ms: 0,
       };
     }
 
@@ -137,8 +188,18 @@ export class ProcessRunner {
       timeout: command.timeoutMs,
     });
 
-    const stdout = new OutputBuffer(command.maxOutputBytes);
-    const stderr = new OutputBuffer(command.maxOutputBytes);
+    const stdout = new OutputBuffer(
+      command.maxOutputBytes,
+      command.outputCapture,
+      command.stripAnsi,
+      this.persistedOutputMaximumBytes,
+    );
+    const stderr = new OutputBuffer(
+      command.maxOutputBytes,
+      command.outputCapture,
+      command.stripAnsi,
+      this.persistedOutputMaximumBytes,
+    );
 
     return await new Promise<CommandResult>((resolve) => {
       let completed = false;
@@ -202,6 +263,22 @@ export class ProcessRunner {
               : status === "cancelled"
                 ? "Command was cancelled"
                 : null;
+        const stdoutResource =
+          capturedStdout.persistedText === undefined || this.artifactStore === undefined
+            ? undefined
+            : this.artifactStore.put(
+                capturedStdout.persistedText,
+                capturedStdout.totalBytes,
+                capturedStdout.persistedTruncated ?? false,
+              );
+        const stderrResource =
+          capturedStderr.persistedText === undefined || this.artifactStore === undefined
+            ? undefined
+            : this.artifactStore.put(
+                capturedStderr.persistedText,
+                capturedStderr.totalBytes,
+                capturedStderr.persistedTruncated ?? false,
+              );
 
         const result: CommandResult = {
           id: command.id,
@@ -217,6 +294,9 @@ export class ProcessRunner {
           duration_ms: durationSince(startedAt),
           error,
           rejection_reason: null,
+          global_queue_wait_ms: 0,
+          ...(stdoutResource === undefined ? {} : { stdout_resource: stdoutResource }),
+          ...(stderrResource === undefined ? {} : { stderr_resource: stderrResource }),
         };
 
         this.logger.info("command_finished", {

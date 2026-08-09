@@ -4,6 +4,8 @@ export const logLevelSchema = z.enum(["debug", "info", "warn", "error", "silent"
 export type LogLevel = z.infer<typeof logLevelSchema>;
 export const commandModeSchema = z.enum(["allowlist", "denylist"]);
 export type CommandMode = z.infer<typeof commandModeSchema>;
+export const outputModeSchema = z.enum(["compact", "debug"]);
+export type OutputMode = z.infer<typeof outputModeSchema>;
 
 const executableNameSchema = z
   .string()
@@ -37,6 +39,62 @@ export const policyFileSchema = z
       .max(16 * 1024 * 1024)
       .default(64 * 1024),
     absoluteMaxOutputBytes: z
+      .number()
+      .int()
+      .min(1)
+      .max(16 * 1024 * 1024)
+      .default(1024 * 1024),
+    defaultMaxTotalOutputBytes: z
+      .number()
+      .int()
+      .min(2)
+      .max(16 * 1024 * 1024)
+      .default(64 * 1024),
+    absoluteMaxTotalOutputBytes: z
+      .number()
+      .int()
+      .min(2)
+      .max(16 * 1024 * 1024)
+      .default(1024 * 1024),
+    absoluteMaxSerializedResponseBytes: z
+      .number()
+      .int()
+      .min(1024)
+      .max(32 * 1024 * 1024)
+      .default(2 * 1024 * 1024),
+    defaultOutputMode: outputModeSchema.default("compact"),
+    persistTruncatedOutput: z.boolean().default(false),
+    persistedOutputTtlMs: z.number().int().min(1000).max(86_400_000).default(300_000),
+    persistedOutputMaxBytes: z
+      .number()
+      .int()
+      .min(1024)
+      .max(64 * 1024 * 1024)
+      .default(4 * 1024 * 1024),
+    legacyTools: z.boolean().default(false),
+    defaultProgramMaxExecCalls: z.number().int().min(1).max(256).default(32),
+    absoluteProgramMaxExecCalls: z.number().int().min(1).max(1024).default(256),
+    defaultProgramTimeoutMs: z.number().int().min(100).max(600_000).default(10_000),
+    absoluteProgramTimeoutMs: z.number().int().min(100).max(600_000).default(60_000),
+    defaultProgramMemoryBytes: z
+      .number()
+      .int()
+      .min(8 * 1024 * 1024)
+      .max(1024 * 1024 * 1024)
+      .default(64 * 1024 * 1024),
+    absoluteProgramMemoryBytes: z
+      .number()
+      .int()
+      .min(8 * 1024 * 1024)
+      .max(1024 * 1024 * 1024)
+      .default(256 * 1024 * 1024),
+    defaultProgramMaxReturnBytes: z
+      .number()
+      .int()
+      .min(1)
+      .max(16 * 1024 * 1024)
+      .default(64 * 1024),
+    absoluteProgramMaxReturnBytes: z
       .number()
       .int()
       .min(1)
@@ -78,6 +136,44 @@ export const policyFileSchema = z
         code: "custom",
         message: "defaultMaxOutputBytes must not exceed absoluteMaxOutputBytes",
         path: ["defaultMaxOutputBytes"],
+      });
+    }
+    if (value.defaultMaxTotalOutputBytes > value.absoluteMaxTotalOutputBytes) {
+      context.addIssue({
+        code: "custom",
+        message:
+          "defaultMaxTotalOutputBytes must not exceed absoluteMaxTotalOutputBytes",
+        path: ["defaultMaxTotalOutputBytes"],
+      });
+    }
+    if (value.defaultProgramMaxExecCalls > value.absoluteProgramMaxExecCalls) {
+      context.addIssue({
+        code: "custom",
+        message:
+          "defaultProgramMaxExecCalls must not exceed absoluteProgramMaxExecCalls",
+        path: ["defaultProgramMaxExecCalls"],
+      });
+    }
+    if (value.defaultProgramTimeoutMs > value.absoluteProgramTimeoutMs) {
+      context.addIssue({
+        code: "custom",
+        message: "defaultProgramTimeoutMs must not exceed absoluteProgramTimeoutMs",
+        path: ["defaultProgramTimeoutMs"],
+      });
+    }
+    if (value.defaultProgramMemoryBytes > value.absoluteProgramMemoryBytes) {
+      context.addIssue({
+        code: "custom",
+        message: "defaultProgramMemoryBytes must not exceed absoluteProgramMemoryBytes",
+        path: ["defaultProgramMemoryBytes"],
+      });
+    }
+    if (value.defaultProgramMaxReturnBytes > value.absoluteProgramMaxReturnBytes) {
+      context.addIssue({
+        code: "custom",
+        message:
+          "defaultProgramMaxReturnBytes must not exceed absoluteProgramMaxReturnBytes",
+        path: ["defaultProgramMaxReturnBytes"],
       });
     }
   });
