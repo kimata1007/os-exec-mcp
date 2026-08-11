@@ -64,6 +64,7 @@ async function connectedClient(
           }
         : {}),
       allowedEnvironmentKeys: [],
+      commandMode: "allowlist",
       commands: {
         node: {
           allowed: true,

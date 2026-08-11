@@ -12,57 +12,7 @@ import {
   policyFileSchema,
 } from "./schema.js";
 
-const DEFAULT_COMMANDS: PolicyFile["commands"] = {
-  git: {
-    allowed: true,
-    allowedSubcommands: ["status", "diff", "log", "show", "rev-parse", "ls-files"],
-    readOnly: true,
-  },
-  rg: {
-    allowed: true,
-    readOnly: true,
-  },
-  ls: {
-    allowed: true,
-    readOnly: true,
-  },
-  find: {
-    allowed: true,
-    readOnly: true,
-  },
-  cat: {
-    allowed: true,
-    readOnly: true,
-  },
-  head: {
-    allowed: true,
-    readOnly: true,
-  },
-  tail: {
-    allowed: true,
-    readOnly: true,
-  },
-  wc: {
-    allowed: true,
-    readOnly: true,
-  },
-  stat: {
-    allowed: true,
-    readOnly: true,
-  },
-  du: {
-    allowed: true,
-    readOnly: true,
-  },
-  pwd: {
-    allowed: true,
-    readOnly: true,
-  },
-};
-
-const DEFAULT_POLICY: PolicyFile = policyFileSchema.parse({
-  commands: DEFAULT_COMMANDS,
-});
+const DEFAULT_POLICY: PolicyFile = policyFileSchema.parse({});
 
 export type ConfigurationEnvironment = Readonly<Record<string, string | undefined>>;
 
@@ -261,10 +211,6 @@ export async function loadPolicy(
     logLevelOverride === undefined
       ? loaded.policy.logLevel
       : logLevelSchema.parse(logLevelOverride);
-  const readOnlyOverride = parseBoolean(
-    "OS_EXEC_READ_ONLY",
-    renamedEnvironmentValue(environment, "OS_EXEC_READ_ONLY", "OS_BATCH_READ_ONLY"),
-  );
   const legacyToolsOverride = parseBoolean(
     "OS_EXEC_LEGACY_TOOLS",
     environment["OS_EXEC_LEGACY_TOOLS"],
@@ -275,7 +221,6 @@ export async function loadPolicy(
     workspaceRoots: [...new Set(workspaceRoots)],
     trustedExecutableDirectories: [...new Set(trustedExecutableDirectories)],
     logLevel: parsedLogLevel,
-    readOnly: readOnlyOverride ?? loaded.policy.readOnly,
     legacyTools: legacyToolsOverride ?? loaded.policy.legacyTools,
   };
 }

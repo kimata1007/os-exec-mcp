@@ -1,7 +1,7 @@
 {
   "name": "os-exec-mcp",
-  "version": "0.2.0",
-  "description": "Secure MCP server for command DAGs and sandboxed programmatic orchestration",
+  "version": "0.3.0",
+  "description": "Local MCP server for command DAGs and sandboxed programmatic orchestration",
   "type": "module",
   "license": "MIT",
   "keywords": [

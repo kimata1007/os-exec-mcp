@@ -1,6 +1,6 @@
 # os-exec-mcp
 
-A secure, local-first Model Context Protocol server for command graphs and sandboxed
+A local-first Model Context Protocol server for command graphs and sandboxed
 programmatic orchestration.
 
 The default MCP surface has two tools:
@@ -49,21 +49,16 @@ Requirements:
 - npm
 - an MCP client with local stdio support
 
-Register the default read-only policy in Codex:
+Register the server in Codex:
 
 ```bash
 codex mcp add os-exec -- npx -y os-exec-mcp
 ```
 
-For a trusted development workspace, use the bundled development denylist policy:
-
-```bash
-codex mcp add os-exec -- npx -y os-exec-mcp --development
-```
-
-The development policy is not an OS sandbox. Allowed runtimes and build tools can run
-code or write data available to the server process. Use it only for trusted
-repositories inside an existing sandbox, container, or low-privilege account.
+There is one startup mode. By default every executable found on the inherited PATH is
+allowed except direct privilege-elevation tools such as `sudo`, `su`, `doas`,
+`pkexec`, and `runas`. Command authorization is otherwise delegated to the MCP client
+and its approval or sandbox model.
 
 Install and verify from source:
 
@@ -247,11 +242,11 @@ limits fail startup closed.
   "maxBatchSize": 16,
   "maxConcurrency": 16,
   "defaultConcurrency": 8,
-  "defaultTimeoutMs": 10000,
-  "maxTimeoutMs": 60000,
-  "defaultMaxOutputBytes": 65536,
+  "defaultTimeoutMs": 120000,
+  "maxTimeoutMs": 300000,
+  "defaultMaxOutputBytes": 262144,
   "absoluteMaxOutputBytes": 1048576,
-  "defaultMaxTotalOutputBytes": 65536,
+  "defaultMaxTotalOutputBytes": 262144,
   "absoluteMaxTotalOutputBytes": 1048576,
   "absoluteMaxSerializedResponseBytes": 2097152,
   "defaultOutputMode": "compact",
@@ -260,35 +255,25 @@ limits fail startup closed.
   "persistedOutputMaxBytes": 4194304,
   "defaultProgramMaxExecCalls": 32,
   "absoluteProgramMaxExecCalls": 256,
-  "defaultProgramTimeoutMs": 10000,
-  "absoluteProgramTimeoutMs": 60000,
+  "defaultProgramTimeoutMs": 120000,
+  "absoluteProgramTimeoutMs": 300000,
   "defaultProgramMemoryBytes": 67108864,
   "absoluteProgramMemoryBytes": 268435456,
   "defaultProgramMaxReturnBytes": 65536,
   "absoluteProgramMaxReturnBytes": 1048576,
   "allowedEnvironmentKeys": [],
-  "inheritExecutablePath": false,
-  "commandMode": "allowlist",
-  "deniedCommands": [],
-  "commands": {
-    "git": {
-      "allowed": true,
-      "allowedSubcommands": ["status", "diff", "log", "show", "rev-parse", "ls-files"],
-      "readOnly": true
-    },
-    "rg": {
-      "allowed": true,
-      "readOnly": true
-    }
-  },
+  "inheritExecutablePath": true,
+  "commandMode": "denylist",
+  "deniedCommands": ["doas", "pkexec", "runas", "su", "sudo"],
+  "commands": {},
   "logLevel": "info",
-  "readOnly": true
+  "readOnly": false
 }
 ```
 
-Omitted fields receive safe schema defaults. `examples/policy.read-only.json` is an
-allowlist. `examples/policy.development.json` is a denylist for trusted development
-and inherits the parent executable path.
+Omitted fields receive these schema defaults. `examples/policy.default.json` mirrors
+the built-in policy. `OS_EXEC_POLICY_FILE` remains available for administrators that
+need a narrower custom policy; it does not select another startup mode.
 
 Environment overrides:
 
@@ -297,7 +282,6 @@ Environment overrides:
 | `OS_EXEC_POLICY_FILE`    | strict policy JSON path                            |
 | `OS_EXEC_WORKSPACE_ROOT` | replace configured roots with one startup root     |
 | `OS_EXEC_LOG_LEVEL`      | `debug`, `info`, `warn`, `error`, or `silent`      |
-| `OS_EXEC_READ_ONLY`      | `true`/`false` or `1`/`0`                          |
 | `OS_EXEC_LEGACY_TOOLS`   | expose `batch_exec` and `workflow_exec` during 0.x |
 
 The former `OS_BATCH_*` names remain migration aliases where applicable. Conflicting
@@ -309,7 +293,8 @@ new and legacy values fail startup.
   arrays.
 - Executables resolve through canonical trusted directories or an explicit absolute
   policy path.
-- Built-in rules always deny shells and privilege-elevation tools.
+- Built-in rules always deny direct privilege-elevation tools. Shells and other
+  executables are allowed by the default policy.
 - Workspace paths are canonicalized and must remain under configured roots after
   symlink resolution.
 - The child environment is minimal. Loader, shell, proxy, credential, `PATH`, and
@@ -317,10 +302,11 @@ new and legacy values fail startup.
 - Timeouts, cancellation, fail-fast, and shutdown terminate process trees.
 - Logs exclude argv values, environment maps, and output bodies.
 
-The denylist development mode reduces accidental direct execution; it is not a
-security boundary against a malicious allowed compiler, runtime, package manager,
-build script, or repository. Use the allowlist policy for untrusted content and add an
-OS/container sandbox when stronger isolation is required.
+The default command policy is intentionally not a security boundary against a
+malicious shell, compiler, runtime, package manager, build script, or repository.
+Use client-side approvals and an OS/container sandbox when stronger isolation is
+required. A custom allowlist policy can still narrow authority for deployments that
+need server-side command authorization.
 
 ## Architecture
 
@@ -336,7 +322,7 @@ Detailed Japanese documentation is available in [`docs/`](docs/README.md):
 2. `src/validation/` validates inputs and server limit overrides.
 3. `src/executor/exec-executor.ts` owns the single DAG scheduler.
 4. `src/executor/execution-limiter.ts` owns the shared FIFO process permits.
-5. `src/policy/` owns executable, cwd, argv, and environment authority.
+5. `src/policy/` owns executable, cwd, and environment authority.
 6. `src/executor/process-runner.ts` owns shell-free spawn and process-tree lifecycle.
 7. `src/executor/output-buffer.ts` owns bounded head/head-tail capture.
 8. `src/program/` owns the QuickJS Worker protocol and program limits.
@@ -355,8 +341,8 @@ npm test
 npm run build
 ```
 
-`npm run check` runs the complete sequence. Tests cover validation, policy hardening,
-path and environment escape attempts, output bounds, ordering, DAG scheduling,
+`npm run check` runs the complete sequence. Tests cover validation, policy selection,
+cwd and environment controls, output bounds, ordering, DAG scheduling,
 partial failure, fail-fast, cancellation, process-tree cleanup, cross-request
 concurrency, QuickJS isolation, dynamic parallel work, call/return/memory/time limits,
 MCP initialization, tool listing, calls, and legacy gating.

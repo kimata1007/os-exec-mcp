@@ -23,29 +23,31 @@ afterEach(async () => {
 });
 
 describe("policy loading", () => {
-  it("loads safe defaults rooted at the server working directory", async () => {
+  it("loads the single permissive default rooted at the server working directory", async () => {
     const root = await temporaryDirectory();
     const policy = await loadPolicy({}, root);
 
     expect(policy.workspaceRoots).toEqual([await realpath(root)]);
-    expect(policy.readOnly).toBe(true);
+    expect(policy.readOnly).toBe(false);
     expect(policy.maxConcurrency).toBe(16);
     expect(policy.defaultConcurrency).toBe(8);
-    expect(policy.commandMode).toBe("allowlist");
-    expect(policy.inheritExecutablePath).toBe(false);
-    expect(policy.commands["git"]?.allowedSubcommands).toContain("status");
-    expect(policy.commands["ls"]?.readOnly).toBe(true);
-    expect(policy.commands["find"]?.readOnly).toBe(true);
+    expect(policy.commandMode).toBe("denylist");
+    expect(policy.inheritExecutablePath).toBe(true);
+    expect(policy.deniedCommands).toEqual(["doas", "pkexec", "runas", "su", "sudo"]);
+    expect(policy.deniedCommands).not.toEqual(
+      expect.arrayContaining(["docker", "kubectl", "rm", "nohup", "sh"]),
+    );
+    expect(policy.commands).toEqual({});
     expect(policy.trustedExecutableDirectories).toContain(
       await realpath(path.dirname(process.execPath)),
     );
   });
 
-  it("loads the development policy for independent reads and writes", async () => {
+  it("loads the documented default policy for independent reads and writes", async () => {
     const root = await temporaryDirectory();
     const policy = await loadPolicy(
       {
-        OS_EXEC_POLICY_FILE: path.resolve("examples/policy.development.json"),
+        OS_EXEC_POLICY_FILE: path.resolve("examples/policy.default.json"),
         OS_EXEC_WORKSPACE_ROOT: root,
       },
       process.cwd(),
@@ -55,8 +57,7 @@ describe("policy loading", () => {
     expect(policy.maxConcurrency).toBe(16);
     expect(policy.commandMode).toBe("denylist");
     expect(policy.inheritExecutablePath).toBe(true);
-    expect(policy.deniedCommands).toContain("rm");
-    expect(policy.deniedCommands).toContain("sudo");
+    expect(policy.deniedCommands).toEqual(["doas", "pkexec", "runas", "su", "sudo"]);
     expect(policy.commands).toEqual({});
     expect(policy.trustedExecutableDirectories).toContain(
       await realpath(path.dirname(process.execPath)),
@@ -117,7 +118,7 @@ describe("policy loading", () => {
     ).rejects.toBeInstanceOf(ConfigurationError);
   });
 
-  it("supports explicit workspace, log-level, and read-only environment overrides", async () => {
+  it("supports explicit workspace and log-level environment overrides", async () => {
     const directory = await temporaryDirectory();
     const workspace = path.join(directory, "workspace");
     await mkdir(workspace);
@@ -126,7 +127,6 @@ describe("policy loading", () => {
       {
         OS_EXEC_WORKSPACE_ROOT: workspace,
         OS_EXEC_LOG_LEVEL: "debug",
-        OS_EXEC_READ_ONLY: "false",
         OS_EXEC_LEGACY_TOOLS: "true",
       },
       directory,
@@ -147,7 +147,6 @@ describe("policy loading", () => {
       {
         OS_BATCH_WORKSPACE_ROOT: workspace,
         OS_BATCH_LOG_LEVEL: "debug",
-        OS_BATCH_READ_ONLY: "false",
       },
       directory,
     );
@@ -173,13 +172,5 @@ describe("policy loading", () => {
     ).rejects.toThrow(
       "OS_EXEC_WORKSPACE_ROOT and legacy OS_BATCH_WORKSPACE_ROOT cannot be set to different values",
     );
-  });
-
-  it("rejects malformed boolean overrides", async () => {
-    const directory = await temporaryDirectory();
-
-    await expect(
-      loadPolicy({ OS_EXEC_READ_ONLY: "maybe" }, directory),
-    ).rejects.toBeInstanceOf(ConfigurationError);
   });
 });

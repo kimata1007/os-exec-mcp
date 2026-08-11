@@ -86,7 +86,7 @@ describe("command and path policy", () => {
     );
   });
 
-  it("allows only configured git subcommands and injects safe git options", async () => {
+  it("allows only configured git subcommands without rewriting arguments", async () => {
     const root = await temporaryDirectory();
     const evaluator = new CommandPolicyEvaluator(
       testPolicy(root, {
@@ -105,9 +105,7 @@ describe("command and path policy", () => {
       command(["git", "status", "--short"]),
       1024,
     );
-    expect(prepared.args).toContain("--no-pager");
-    expect(prepared.args).toContain("core.fsmonitor=false");
-    expect(prepared.args).toContain("status");
+    expect(prepared.args).toEqual(["status", "--short"]);
 
     await expectRejection(
       evaluator.prepare(command(["git", "reset", "--hard"]), 1024),
@@ -115,7 +113,7 @@ describe("command and path policy", () => {
     );
   });
 
-  it("rejects dangerous options and workspace path escapes", async () => {
+  it("passes command arguments through without built-in filtering", async () => {
     const root = await temporaryDirectory();
     const evaluator = new CommandPolicyEvaluator(
       testPolicy(root, {
@@ -134,38 +132,20 @@ describe("command and path policy", () => {
       }),
     );
 
-    await expectRejection(
-      evaluator.prepare(command(["git", "diff", "--ext-diff"]), 1024),
-      "argument_denied",
-    );
-    await expectRejection(
-      evaluator.prepare(command(["git", "diff", "--output=report.txt"]), 1024),
-      "argument_denied",
-    );
-    await expectRejection(
-      evaluator.prepare(command(["rg", "--pre=sh bad"]), 1024),
-      "argument_denied",
-    );
-    await expectRejection(
-      evaluator.prepare(command(["rg", "pattern", "/etc/passwd"]), 1024),
-      "argument_path_escape",
-    );
-    await expectRejection(
-      evaluator.prepare(command(["find", ".", "-exec", "bad", ";"]), 1024),
-      "argument_denied",
-    );
-    await expectRejection(
-      evaluator.prepare(command(["ls", "../outside"]), 1024),
-      "argument_path_escape",
-    );
-    await expectRejection(
-      evaluator.prepare(command(["ls", "/etc"]), 1024),
-      "argument_path_escape",
-    );
-    await expectRejection(
-      evaluator.prepare(command(["cp", "source", "--target-directory=/tmp"]), 1024),
-      "argument_path_escape",
-    );
+    const cases = [
+      ["git", "diff", "--ext-diff"],
+      ["git", "diff", "--output=report.txt"],
+      ["rg", "--pre=sh bad"],
+      ["rg", "pattern", "/etc/passwd"],
+      ["find", ".", "-exec", "bad", ";"],
+      ["ls", "../outside"],
+      ["ls", "/etc"],
+      ["cp", "source", "--target-directory=/tmp"],
+    ];
+    for (const argv of cases) {
+      const prepared = await evaluator.prepare(command(argv), 1024);
+      expect(prepared.args).toEqual(argv.slice(1));
+    }
   });
 
   it("enforces read-only classification", async () => {
@@ -272,7 +252,7 @@ describe("command and path policy", () => {
     );
   });
 
-  it("always rejects shells and executable paths supplied by clients", async () => {
+  it("allows configured shells and always rejects direct privilege elevation", async () => {
     const root = await temporaryDirectory();
     const evaluator = new CommandPolicyEvaluator(
       testPolicy(root, {
@@ -283,10 +263,17 @@ describe("command and path policy", () => {
       }),
     );
 
-    await expectRejection(
-      evaluator.prepare(command(["sh", "-c", "echo bad"]), 1024),
-      "privileged_or_shell_command_denied",
+    const prepared = await evaluator.prepare(
+      command(["sh", "-c", "echo allowed"]),
+      1024,
     );
+    expect(prepared.args).toEqual(["-c", "echo allowed"]);
+    for (const executable of ["doas", "pkexec", "runas", "su", "sudo"]) {
+      await expectRejection(
+        evaluator.prepare(command([executable, "true"]), 1024),
+        "privilege_elevation_denied",
+      );
+    }
     await expectRejection(
       evaluator.prepare(command(["/bin/sh", "-c", "echo bad"]), 1024),
       "invalid_executable_name",

@@ -10,24 +10,7 @@ import { pathIsInside, resolveWorkingDirectory } from "./path-policy.js";
 
 const EXECUTABLE_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._+-]*$/;
 
-const ALWAYS_DENIED_EXECUTABLES = new Set([
-  "bash",
-  "cmd",
-  "cmd.exe",
-  "dash",
-  "doas",
-  "fish",
-  "ksh",
-  "pkexec",
-  "powershell",
-  "powershell.exe",
-  "pwsh",
-  "runas",
-  "sh",
-  "su",
-  "sudo",
-  "zsh",
-]);
+const ALWAYS_DENIED_EXECUTABLES = new Set(["doas", "pkexec", "runas", "su", "sudo"]);
 
 const ALWAYS_DENIED_ENVIRONMENT_NAMES = new Set([
   "BASH_ENV",
@@ -86,51 +69,6 @@ const ALWAYS_DENIED_ENVIRONMENT_PREFIXES = [
   "RIPGREP_",
   "SSL_CERT_",
 ];
-
-const GIT_DIFF_SUBCOMMANDS = new Set(["diff", "log", "show"]);
-const GIT_DENIED_ARGUMENTS = new Set([
-  "--exec-path",
-  "--ext-diff",
-  "--help",
-  "--no-index",
-  "--output",
-  "--paginate",
-  "--show-signature",
-  "--textconv",
-  "-c",
-]);
-const GIT_DENIED_ARGUMENT_PREFIXES = [
-  "--config-env=",
-  "--exec-path=",
-  "--output=",
-  "--upload-pack=",
-];
-const RIPGREP_DENIED_ARGUMENTS = new Set(["--follow", "--hostname-bin", "--pre", "-L"]);
-const RIPGREP_DENIED_ARGUMENT_PREFIXES = ["--pre=", "--hostname-bin="];
-const FIND_DENIED_ARGUMENTS = new Set([
-  "-delete",
-  "-exec",
-  "-execdir",
-  "-fls",
-  "-fprint",
-  "-fprintf",
-  "-ok",
-  "-okdir",
-]);
-const WORKSPACE_PATH_EXECUTABLES = new Set([
-  "cat",
-  "cp",
-  "du",
-  "find",
-  "head",
-  "ls",
-  "mkdir",
-  "mv",
-  "stat",
-  "tail",
-  "touch",
-  "wc",
-]);
 
 function normalizedExecutableName(executable: string): string {
   return process.platform === "win32" ? executable.toLowerCase() : executable;
@@ -279,108 +217,6 @@ async function resolveExecutable(
   );
 }
 
-function rejectArgument(
-  argument: string,
-  deniedArguments: ReadonlySet<string>,
-  deniedPrefixes: readonly string[],
-  executable: string,
-): void {
-  if (
-    deniedArguments.has(argument) ||
-    deniedPrefixes.some((prefix) => argument.startsWith(prefix))
-  ) {
-    throw new PolicyRejectionError(
-      "argument_denied",
-      `${executable} argument ${argument} is denied by the built-in safety policy`,
-    );
-  }
-}
-
-function rejectPathEscape(argument: string, executable: string): void {
-  const equalsIndex = argument.indexOf("=");
-  const pathCandidates = [
-    argument,
-    ...(equalsIndex === -1 ? [] : [argument.slice(equalsIndex + 1)]),
-  ];
-  if (
-    pathCandidates.some(
-      (candidate) =>
-        path.isAbsolute(candidate) ||
-        path.win32.isAbsolute(candidate) ||
-        /(?:^|[/\\])\.\.(?:[/\\]|$)/.test(candidate),
-    )
-  ) {
-    throw new PolicyRejectionError(
-      "argument_path_escape",
-      `${executable} arguments must not contain absolute paths or parent-directory traversal`,
-    );
-  }
-}
-
-function hardenGitArguments(clientArguments: readonly string[]): string[] {
-  const subcommand = clientArguments[0];
-  if (subcommand === undefined) {
-    return [];
-  }
-
-  for (const argument of clientArguments.slice(1)) {
-    rejectArgument(argument, GIT_DENIED_ARGUMENTS, GIT_DENIED_ARGUMENT_PREFIXES, "git");
-    rejectPathEscape(argument, "git");
-    if (argument.includes("%G")) {
-      throw new PolicyRejectionError(
-        "argument_denied",
-        "git signature format placeholders are denied because they can invoke a configured verifier",
-      );
-    }
-  }
-
-  const hardenedSubcommandArguments = [
-    subcommand,
-    ...(GIT_DIFF_SUBCOMMANDS.has(subcommand) ? ["--no-ext-diff", "--no-textconv"] : []),
-    ...clientArguments.slice(1),
-  ];
-
-  return [
-    "--no-pager",
-    "-c",
-    "core.fsmonitor=false",
-    "-c",
-    `core.hooksPath=${process.platform === "win32" ? "NUL" : "/dev/null"}`,
-    ...hardenedSubcommandArguments,
-  ];
-}
-
-function hardenedArguments(
-  executable: string,
-  clientArguments: readonly string[],
-): string[] {
-  if (executable === "git") {
-    return hardenGitArguments(clientArguments);
-  }
-  if (executable === "rg") {
-    clientArguments.forEach((argument) => {
-      rejectArgument(
-        argument,
-        RIPGREP_DENIED_ARGUMENTS,
-        RIPGREP_DENIED_ARGUMENT_PREFIXES,
-        "rg",
-      );
-      rejectPathEscape(argument, "rg");
-    });
-  }
-  if (executable === "find") {
-    clientArguments.forEach((argument) => {
-      rejectArgument(argument, FIND_DENIED_ARGUMENTS, [], "find");
-    });
-  }
-  if (WORKSPACE_PATH_EXECUTABLES.has(executable)) {
-    clientArguments.forEach((argument) => {
-      rejectPathEscape(argument, executable);
-    });
-  }
-  return [...clientArguments];
-}
-
 function commandRule(
   executable: string,
   policy: RuntimePolicy,
@@ -421,8 +257,8 @@ export class CommandPolicyEvaluator {
     const normalizedName = normalizedExecutableName(executable);
     if (ALWAYS_DENIED_EXECUTABLES.has(normalizedName)) {
       throw new PolicyRejectionError(
-        "privileged_or_shell_command_denied",
-        "Shells and privilege-elevation commands are always denied",
+        "privilege_elevation_denied",
+        "Privilege-elevation commands are always denied",
       );
     }
 
@@ -467,18 +303,10 @@ export class CommandPolicyEvaluator {
     const resolvedExecutable = await resolveExecutable(executable, rule, this.policy);
     const environment = minimalEnvironment(this.policy, command.env);
 
-    if (normalizedName === "git") {
-      environment["GIT_CONFIG_GLOBAL"] =
-        process.platform === "win32" ? "NUL" : "/dev/null";
-      environment["GIT_CONFIG_NOSYSTEM"] = "1";
-      environment["GIT_OPTIONAL_LOCKS"] = "0";
-      environment["GIT_TERMINAL_PROMPT"] = "0";
-    }
-
     return {
       id: command.id,
       executable: resolvedExecutable,
-      args: hardenedArguments(normalizedName, clientArguments),
+      args: [...clientArguments],
       cwd,
       timeoutMs: command.timeoutMs,
       env: environment,

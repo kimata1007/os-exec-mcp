@@ -30,14 +30,14 @@ export const policyFileSchema = z
     maxBatchSize: z.number().int().min(1).max(256).default(16),
     maxConcurrency: z.number().int().min(1).max(64).default(16),
     defaultConcurrency: z.number().int().min(1).max(64).default(8),
-    defaultTimeoutMs: z.number().int().min(100).max(600_000).default(10_000),
-    maxTimeoutMs: z.number().int().min(100).max(600_000).default(60_000),
+    defaultTimeoutMs: z.number().int().min(100).max(600_000).default(120_000),
+    maxTimeoutMs: z.number().int().min(100).max(600_000).default(300_000),
     defaultMaxOutputBytes: z
       .number()
       .int()
       .min(1)
       .max(16 * 1024 * 1024)
-      .default(64 * 1024),
+      .default(256 * 1024),
     absoluteMaxOutputBytes: z
       .number()
       .int()
@@ -49,7 +49,7 @@ export const policyFileSchema = z
       .int()
       .min(2)
       .max(16 * 1024 * 1024)
-      .default(64 * 1024),
+      .default(256 * 1024),
     absoluteMaxTotalOutputBytes: z
       .number()
       .int()
@@ -74,8 +74,8 @@ export const policyFileSchema = z
     legacyTools: z.boolean().default(false),
     defaultProgramMaxExecCalls: z.number().int().min(1).max(256).default(32),
     absoluteProgramMaxExecCalls: z.number().int().min(1).max(1024).default(256),
-    defaultProgramTimeoutMs: z.number().int().min(100).max(600_000).default(10_000),
-    absoluteProgramTimeoutMs: z.number().int().min(100).max(600_000).default(60_000),
+    defaultProgramTimeoutMs: z.number().int().min(100).max(600_000).default(120_000),
+    absoluteProgramTimeoutMs: z.number().int().min(100).max(600_000).default(300_000),
     defaultProgramMemoryBytes: z
       .number()
       .int()
@@ -108,12 +108,15 @@ export const policyFileSchema = z
       .array(z.string().min(1).max(4096))
       .max(64)
       .optional(),
-    inheritExecutablePath: z.boolean().default(false),
-    commandMode: commandModeSchema.default("allowlist"),
-    deniedCommands: z.array(executableNameSchema).max(256).default([]),
+    inheritExecutablePath: z.boolean().default(true),
+    commandMode: commandModeSchema.default("denylist"),
+    deniedCommands: z
+      .array(executableNameSchema)
+      .max(256)
+      .default(["doas", "pkexec", "runas", "su", "sudo"]),
     commands: z.record(z.string().min(1).max(128), commandPolicySchema).default({}),
     logLevel: logLevelSchema.default("info"),
-    readOnly: z.boolean().default(true),
+    readOnly: z.boolean().default(false),
   })
   .strict()
   .superRefine((value, context) => {
